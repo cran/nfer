@@ -1,0 +1,95 @@
+---
+title: "Getting started with nfer"
+author: "Sean Kauffman"
+date: "2021-11-12"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{getting-started}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+To get started with the nfer R interface, one option is to attach the library.  
+The recommended way to use nfer, though, is to just specify the nfer namespace
+whenever you use an nfer function.  Throughout this vignette, we'll use the 
+nfer namespace.
+
+```{r setup}
+library(nfer)
+```
+
+There are four functions provided by the nfer package:
+
+* `load`
+* `learn`
+* `apply`
+* `read`
+
+To initialize a specification that can be applied to a dataframe of events, use
+the `load` function.  This function takes two parameters: the path to an nfer
+specification file and the log level (optional).  
+
+```{r}
+ssps <- nfer::load(system.file("extdata", "ssps.nfer", package = "nfer"))
+```
+
+This specification can then be applied to a dataframe containing events.  There 
+should be at least two columns, the first of which is a character type containing 
+the event names, and the second of which is either an integer or a character type 
+containing the event timestamps.
+
+The reason for representing timestamps as strings is that integers in R are limited 
+to 32 bits, so if you need larger numbers (say, if you have millisecond granularity 
+Unix timestamps), they must be character type.
+Technically numeric type timestamp columns are supported but discouraged, because 
+they risk loss of precision during floating-point conversion.
+Internally, timestamps are represented by nfer as 64-bit integers.
+Currently the R wrappers will automatically convert factor columns to character 
+columns.
+
+```{r}
+ssps <- nfer::load(system.file("extdata", "ssps.nfer", package = "nfer"))
+df <- read.table(system.file("extdata", "ssps.events", package = "nfer"), sep="|", header=FALSE, colClasses = "character")
+intervals <- nfer::apply(ssps, df)
+summary(intervals) 
+```
+
+If the data frame has more than two columns, the 3rd on will be used as data.  
+Events will be assigned data values with a name equal to the name of the 
+column whenever the value in the cell corresponding to that event and column 
+has a value other than NA.  The `read` function will load event files 
+formatted for the command-line version of nfer into a dataframe formatted for 
+the R version.
+
+```{r}
+test <- nfer::load(system.file("extdata", "ops.nfer", package = "nfer"))
+ops <- nfer::read(system.file("extdata", "ops.events", package = "nfer"))
+str(ops)
+intervals <- nfer::apply(test, ops)
+summary(intervals)
+```
+
+The nfer mining algorithm can also be used from R using the `learn` function.
+The function takes a single parameter which is a data frame of events.  
+There should be two columns, the first of which is a character type
+containing the event names, and the second of which is an integer, string, or 
+numeric type containing the event timestamps.  `learn` also has the same 
+optional argument as `load` which is the log level.
+
+The specification returned from `learn` can then be applied to a trace using 
+`apply` just like if it had been loaded from a specification file.
+
+```{r}
+df <- read.table(system.file("extdata", "ssps.events", package = "nfer"), sep="|", header=FALSE)
+learned <- nfer::learn(df)
+intervals <- nfer::apply(learned, df)
+summary(intervals)
+```
+

@@ -1,0 +1,20 @@
+citHeader("To cite nfer in publications use:")
+
+citEntry(entry = "Article",
+  title = "Inferring Event Stream Abstractions",
+  author = personList(as.person("Sean Kauffman"),
+                      as.person("Klaus Havelund"), 
+                      as.person("Rajeev Joshi"),
+                      as.person("Sebastian Fischmeister")),
+  journal = "Formal Methods in System Design",
+  year = "2018",
+  volume = "53",
+  pages = "54--82",
+  doi = "10.1007/s10703-018-0317-z",
+  url = "https://doi.org/10.1007/s10703-018-0317-z",
+
+  textVersion = 
+  paste("S. Kauffman, K. Havelund, R. Joshi, S. Fischmeister.",
+        "Inferring Event Stream Abstractions. Formal Methods in System Design,",
+        "53:(2018), 54-82. DOI: 10.1007/s10703-018-0317-z")
+)

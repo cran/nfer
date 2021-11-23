@@ -1,0 +1,4 @@
+RUNNING :- ON before OFF where ON.id = OFF.id map {id -> ON.id}
+TESTING :- t:TEST during r:RUNNING where t.id = r.id map {s -> t.success}
+FAILURE :- TESTING where !TESTING.s
+HAZARD  :- FAILURE unless contain TEST where TEST.success
