@@ -26,6 +26,7 @@
 #define TYPES_H_
 
 #include <stdint.h>
+#include <stddef.h>
 
 /* GCC and CLANG specific defines */
 #ifdef __GNUC__

@@ -1,6 +1,6 @@
-8ad39e606f11d1438653086ba73d545d *DESCRIPTION
+83477b7b7efab10110b765cd0dd528a7 *DESCRIPTION
 7cb561271a6e82da8159a689d06a1612 *NAMESPACE
-b69f3728e123a4b29871e68b0fe1168c *NEWS.md
+59340a841dec3e2444178ac856ec156a *NEWS.md
 8de56894eb6077885c7b4a0d3568ba33 *R/apply.R
 74516ae9c115aac4807799573646a218 *R/init.R
 573b1f3385005009027409640b4cc9e6 *R/learn.R
@@ -127,8 +127,8 @@ c9de0a80602c275aee51719d2f38006d *src/dict.c
 117bdff0738839ef1101d4002eb18154 *src/dict.h
 5b54d4e05e6d63f35638a8449ba204da *src/dsl.h
 a9d826839f40ef1cec58d3f01318b81a *src/dsl.tab.c
-ee1cf6a57987a4850769d13cdc2bde3b *src/dsl.tab.h
-d1c8aa17eda64dcb4a58fe8d27a768f4 *src/dsl.yy.c
+638f5391624ea16c39c18c0106d0020f *src/dsl.tab.h
+cad7e54ab62f625f71af04de6782a896 *src/dsl.yy.c
 e68c126aee956692ebdecfea10eeb632 *src/expression.c
 42785babf0721351401a770d02204790 *src/expression.h
 adcba85ae437a677352bdd7d69bf04a9 *src/file.c
@@ -155,7 +155,7 @@ eef024cb7df8ed9a403fd91c26923742 *src/stack.c
 a3ac8a32f106ad6041b4dec6d94a0010 *src/strings.c
 58e8e8f12ec12674762eee829530d734 *src/strings.h
 4f5815af5e9f84e01f14cd176a844ea1 *src/types.c
-0fc8a997d12cf180d564f598571703b6 *src/types.h
+7ecd5a9c0d63338a78467924a91aca7b *src/types.h
 455a45ea668f95fb6b7652c45f158596 *tests/testthat.R
 cf1cf873027446b57d0273a52449eb60 *tests/testthat/test-apply.R
 579b50fdfe4f45fbe8ce21f5645abf56 *tests/testthat/test-functional.R

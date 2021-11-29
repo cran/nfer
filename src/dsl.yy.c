@@ -1,6 +1,4 @@
-#line 1 "gensrc/parser/dsl.yy.c"
 
-#line 3 "gensrc/parser/dsl.yy.c"
 
 #define  YY_INT_ALIGNED short int
 
@@ -653,8 +651,6 @@ static const flex_int32_t yy_rule_can_match_eol[59] =
 #define yymore() yymore_used_but_not_detected
 #define YY_MORE_ADJ 0
 #define YY_RESTORE_YY_MORE_OFFSET
-#line 1 "src/dsl.l"
-#line 2 "src/dsl.l"
 /*
  * dsl.l
  *
@@ -715,10 +711,8 @@ void Rprintf(const char *, ...);
 #define ECHO Rprintf(yytext)
 #endif
 
-#line 718 "gensrc/parser/dsl.yy.c"
 #define YY_NO_INPUT 1
 
-#line 721 "gensrc/parser/dsl.yy.c"
 
 #define INITIAL 0
 #define BLOCK_COMMENT 1

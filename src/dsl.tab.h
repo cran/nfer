@@ -45,7 +45,6 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 1 "src/dsl.y"
 
 /*
  * dsl.y
