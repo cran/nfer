@@ -1,0 +1,3 @@
+D :- (A before B) before C begin A.begin end C.end
+E :- A before (B before C) begin A.begin end C.end
+F :- (A before B) before C begin B.begin end B.end

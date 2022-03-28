@@ -26,6 +26,17 @@
 #include "types.h"
 #include "strings.h"
 
+/**
+ * Copy the second string to the first up to the max_length.
+ * Assumes C strings and stops if a null byte is encountered.
+ * The maximum length does not include the null byte, also,
+ * meaning that max_length should always be one less than the 
+ * size of dest.
+ * 
+ * This function copies one byte at a time, which may not be
+ * optimal on many architectures.  Consider improving this
+ * at some point.
+ */
 void copy_string(char *dest, const char *src, size_t max_length) {
     size_t index;
 
@@ -39,6 +50,13 @@ void copy_string(char *dest, const char *src, size_t max_length) {
 
     dest[index] = '\0';
 }
+
+/**
+ * Compare two strings for equality up to max_length.
+ * If any difference is found before the strings terminate or max_length
+ * is reached, then return false.  If the strings are equal up to 
+ * max_length, even if they aren't yet terminated, return true.
+ */
 bool string_equals(const char *left, const char *right, int max_length) {
     int count;
 
@@ -57,6 +75,12 @@ bool string_equals(const char *left, const char *right, int max_length) {
     return true;
 }
 
+/**
+ * Compute the length of a C string, up to some maximum.
+ * Find the end of the passed string in bytes and return it.
+ * If max_length is reached without finding a null byte
+ * just return the max_length.
+ */
 int string_length(const char *str, int max_length) {
     int count;
 
@@ -72,6 +96,14 @@ int string_length(const char *str, int max_length) {
     return count;
 }
 
+/**
+ * Parse a string containing a number into an unsigned 64-bit int.
+ * Takes the string to parse and a maximum length.
+ * Parses the string one byte at a time.  If the max length is reached
+ * or a character is found that is not in the ASCII number range, then
+ * the function terminates, returning the number parsed so far.
+ * Returns zero if the string is NULL or not an ASCII number.
+ */
 uint64_t string_to_u64(const char *str, int max_length) {
     int count;
     uint64_t result;
@@ -91,6 +123,12 @@ uint64_t string_to_u64(const char *str, int max_length) {
     return result;
 }
 
+/**
+ * Parse a string containing a number into a signed 64-bit int.
+ * Takes the string to parse and a maximum length.
+ * If the string begins with a '-' character, calls string_to_u64
+ * and negates it.  If not, just calls string_to_u64.
+ */
 int64_t string_to_i64(const char *str, int max_length) {
     if (!str) {
         return (int64_t)0;
@@ -103,6 +141,15 @@ int64_t string_to_i64(const char *str, int max_length) {
     }
 }
 
+/**
+ * Parses a string containing a number into a double.
+ * Takes the string to parse and a maximum length.
+ * Assumes the string contains only ASCII numbers, - and period (.),
+ * where . delineates the whole and fractional part of the number.
+ * Returns zero if the string is NULL or not a number.
+ * If an unexpected character is encountered, returns the number
+ * up to that point.
+ */
 double string_to_double(const char *str, int max_length) {
     int count;
     double result;

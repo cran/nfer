@@ -1,0 +1,3 @@
+B :- x:A coincide y:A where x.v = y.v & x.v < 3 map { v -> x.v + 1 }
+C :- x:B coincide y:B where x.v = y.v map { v -> x.v }
+A :- x:C coincide y:C where x.v = y.v map { v -> x.v }

@@ -100,7 +100,7 @@ static void dataframe_to_pool(SEXP events, pool *p, dictionary *name_dict,
             error("Could not allocate space for converting dataframes to pools.");
         }
         // get the names of the columns
-        colnames = GET_NAMES(events);
+        colnames = PROTECT(GET_NAMES(events));
         // read vectors for each column and store the column name, if not filtering
         for (column = 0; column < ncols; column++) {
             // get a pointer to the column name
@@ -116,6 +116,8 @@ static void dataframe_to_pool(SEXP events, pool *p, dictionary *name_dict,
                 data_columns[column] = NULL;
             }
         }
+        // we can now unprotect colnames
+        UNPROTECT(1);
     }
 
     for (i = 0; i < length(names_in); i++) {
@@ -510,8 +512,8 @@ SEXP R_nfer(SEXP specfile, SEXP loglevel) {
     bool loaded;
     const char *specfile_value;
 
-    handle = initialize_R_nfer(loglevel,
-            &spec, &name_dict, &key_dict, &val_dict);
+    handle = PROTECT(initialize_R_nfer(loglevel,
+            &spec, &name_dict, &key_dict, &val_dict));
 
     // get the parameter values into C variables
     specfile_value = CHAR(STRING_ELT(specfile, 0));
@@ -522,6 +524,9 @@ SEXP R_nfer(SEXP specfile, SEXP loglevel) {
     if (!loaded) {
         error("Unable to load specification!");
     }
+
+    // unprotect handle
+    UNPROTECT(1);
 
     return handle;
 }
@@ -625,8 +630,8 @@ SEXP R_nfer_learn(SEXP events, SEXP loglevel) {
 
     pool in_pool;
 
-    handle = initialize_R_nfer(loglevel,
-            &spec, &name_dict, &key_dict, &val_dict);
+    handle = PROTECT(initialize_R_nfer(loglevel,
+            &spec, &name_dict, &key_dict, &val_dict));
 
     // initialize the input pool
     initialize_pool(&in_pool);
@@ -645,6 +650,9 @@ SEXP R_nfer_learn(SEXP events, SEXP loglevel) {
 
     // teardown logging
     stop_logging();
+
+    // unprotect handle
+    UNPROTECT(1);
 
     return handle;
 }

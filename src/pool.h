@@ -42,6 +42,9 @@ typedef unsigned int pool_index;
 #define COPY_POOL_EXCLUDE_HIDDEN  0
 #define COPY_POOL_INCLUDE_HIDDEN  1
 
+#define QUEUE_FROM_BEGINNING 0
+#define QUEUE_FROM_END       1
+
 #define END_OF_POOL         ((pool_index)-1)
 
 typedef struct _interval {
@@ -75,20 +78,33 @@ typedef struct _pool_iterator {
     pool_index  last;
 } pool_iterator;
 
-void initialize_pool(pool *p);
-void destroy_pool(pool *p);
+void initialize_pool(pool *);
+void destroy_pool(pool *);
 
-void add_interval(pool *p, interval *add);
-interval * allocate_interval(pool *p);
+void add_interval(pool *, interval *);
+interval * allocate_interval(pool *);
 void copy_pool(pool *dest, pool *src, bool append, bool include_hidden);
-void purge_pool(pool *p);
-void sort_pool(pool *p);
-void clear_pool(pool *p);
-void remove_from_pool(pool_iterator *remove);
+void purge_pool(pool *);
+void sort_pool(pool *);
+void clear_pool(pool *);
+void remove_from_pool(pool_iterator *);
+void remove_hidden(pool *);
 
-void get_pool_iterator(pool *p, pool_iterator *pit);
-interval * next_interval(pool_iterator *pit);
-bool has_next_interval(pool_iterator *pit);
+void get_pool_iterator(pool *, pool_iterator *);
+interval * next_interval(pool_iterator *);
+bool has_next_interval(pool_iterator *);
+
+// These functions are for partial iteration in insertion order (pool queue, get it?).
+// They still use the same iterator struct but the functions must not be mixed.
+// get_pool_queue sets the iterator to where anything added after this is created will 
+// be available to iterate over, but nothing before it the function was called.
+void get_pool_queue(pool *, pool_iterator *, bool);
+interval * next_queue_interval(pool_iterator *);
+bool has_next_queue_interval(pool_iterator *);
+// This checks if the current position of the first queue was added after the current 
+// position of the second queue.
+// This uses the insertion order of the pool, not the iteration order!
+bool interval_added_after(pool_iterator *, pool_iterator *);
 
 int64_t compare_intervals(interval *, interval *);
 bool equal_intervals(interval *, interval *);

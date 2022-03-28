@@ -33,6 +33,7 @@
 #include "log.h"
 #include "expression.h"
 #include "memory.h"
+#include "static.h"
 
 #define PURGE_THRESHOLD 0.5
 
@@ -40,7 +41,6 @@
 // ever have different values in a process, and they are read only except from whatever
 // user interface is being used
 timestamp opt_window_size = NO_WINDOW;
-bool opt_most_recent = false;
 bool opt_full = false;
 
 #ifndef NO_DYNAMIC_MEMORY
@@ -49,6 +49,8 @@ void initialize_specification(nfer_specification *spec, unsigned int rule_space)
     spec->space = 0;
     spec->rules = NULL;
     spec->size = 0;
+    // make sure the analysis result is zeroed
+    initialize_analysis(&spec->analysis);
 
     if (rule_space > 0) {
         spec->rules = (nfer_rule *) malloc(sizeof(nfer_rule) * rule_space);
@@ -98,6 +100,7 @@ void destroy_specification(nfer_specification *spec) {
     }
     spec->size = 0;
     spec->space = 0;
+    // don't worry about the analysis result
 }
 #endif // no dynamic memory
 
@@ -175,6 +178,14 @@ nfer_operator operators[] = {
         { "contain", contain, start_end_1, start_end_1, true }
 };
 
+/**
+ * Add a rule to the specification, returning a pointer to the rule for further setup.
+ * This allocates space in the specification, sets up some initial settings, intitializes some
+ * pointers, and generally makes the rule safe to use.  It does not do a lot of the work
+ * for the caller, though, who will need to manually used the returned pointer to set up
+ * the rest of the data structure.  This is maybe not ideal and should be modified, but 
+ * for now it works well enough and makes testing easier.
+ */
 nfer_rule * add_rule_to_specification(
         nfer_specification *spec,
         label result_label_index, 
@@ -312,6 +323,20 @@ bool is_mapped(nfer_specification *spec, map_key key) {
     return false;
 }
 
+/**
+ * Remove any non-minimal intervals from the pool of potential new intervals.
+ * This function implements the minimality selection function.  It takes two pools, the first
+ * is the new potential intervals and the second is the already produced intervals from previous
+ * calls of apply_rule.
+ * 
+ * The function removes intervals from the potential pool in the following cases:
+ * 1) There is an interval in the prior pool with equal or smaller timestamps
+ * 2) There is an interval in the potentials pool with equal or smaller timestamps
+ * 
+ * Technically, case 2 treat strictly smaller or equal timestamps differently and, in the
+ * case of equal timestamps, compare the maps to ensure the choice is deterministic. 
+ * In practice, this does not really matter and we just keep whatever one is produced later.
+ */
 #ifndef TEST
 static
 #endif
@@ -334,6 +359,7 @@ void select_minimal(pool *potentials, pool *prior) {
                 if (old != new) {
                     if (old->start >= new->start && old->end <= new->end) {
                         // remove the candidate
+                        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Removing non-minimal interval (%d,%" PRIu64 ",%" PRIu64 ") due to conflict in new pool (%d,%" PRIu64 ",%" PRIu64 ")\n", new->name, new->start, new->end, old->name, old->start, old->end);
                         remove_from_pool(&new_pit);
                         removed = true;
                         break;
@@ -349,6 +375,7 @@ void select_minimal(pool *potentials, pool *prior) {
                     old = next_interval(&old_pit);
                     if (old->start >= new->start && old->end <= new->end) {
                         // remove the candidate
+                        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Removing non-minimal interval (%d,%" PRIu64 ",%" PRIu64 ") due to conflict in prior pool (%d,%" PRIu64 ",%" PRIu64 ")\n", new->name, new->start, new->end, old->name, old->start, old->end);
                         remove_from_pool(&new_pit);
                         break;
                     }
@@ -358,7 +385,28 @@ void select_minimal(pool *potentials, pool *prior) {
     } // if potentials is non-empty
 }
 
-static bool interval_match(nfer_rule *rule, interval *lhs, interval *rhs) {
+/**
+ * Given a rule and two intervals, return true if the rule matches those intervals.
+ * This function checks all constraints, both temporal and data, to determine if the
+ * two passed intervals match.
+ * 
+ * All of the constraints must match (conjunction) for the function to return true.
+ * The constaints may be:
+ * 1) the operator (temporal)
+ * 2) a C (phi) function (deprecated)
+ * 3) a where expression from the DSL (data + temporal)
+ * 
+ * This function is used for both inclusive and exclusive rules: for inclusive rules,
+ * a match means a new interval should be produced and for exclusive rules, it means
+ * a new interval should _not_ be produced.
+ * 
+ * In the case of an atomic rule, the caller should pass the left-hand-side interval
+ * for both the lhs and rhs parameters.
+ */
+#ifndef TEST
+static
+#endif
+bool interval_match(nfer_rule *rule, interval *lhs, interval *rhs) {
     nfer_operator *op;
     bool op_succeeded, phi_succeeded;
     typed_value where_succeeded;
@@ -371,11 +419,13 @@ static bool interval_match(nfer_rule *rule, interval *lhs, interval *rhs) {
         // test the operator to see if it is met
         op_succeeded = op->test(lhs->start, lhs->end, rhs->start, rhs->end);
     }
+
     // if there's a phi function, test it, otherwise default to success
     phi_succeeded = true;
     if (rule->phi != NULL && rule->phi->test != NULL) {
         phi_succeeded = rule->phi->test(lhs->start, lhs->end, &lhs->map, rhs->start, rhs->end, &rhs->map);
     }
+
     // if there is a where clause from the DSL, use it, otherwise default to success
     where_succeeded.type = boolean_type;
     where_succeeded.value.boolean = true;
@@ -392,7 +442,20 @@ static bool interval_match(nfer_rule *rule, interval *lhs, interval *rhs) {
     return op_succeeded && phi_succeeded && where_succeeded.value.boolean;
 }
 
-static void set_end_times(nfer_rule *rule, interval *lhs, interval *rhs, interval *result) {
+/**
+ * Given a rule and the two intervals it matches, produce the new begin and end timestamps.
+ * This function generates the new timestamps for produced intervals by either using the operator
+ * or evaluating the begin and end expressions from the DSL.
+ * 
+ * When used to generate timestamps for an atomic or exclusive rule (where there is no right-hand-side)
+ * interval, the caller should pass the left-hand-side interval for both the lhs and rhs parameters.
+ * 
+ * This function uses the non-threadsafe rule->expression_stack for expression evaluation.
+ */
+#ifndef TEST
+static
+#endif
+void set_end_times(nfer_rule *rule, interval *lhs, interval *rhs, interval *result) {
     typed_value time_result;
     nfer_operator *op;
     op = &operators[rule->op_code];
@@ -428,7 +491,20 @@ static void set_end_times(nfer_rule *rule, interval *lhs, interval *rhs, interva
     }
 }
 
-static void set_map(nfer_rule *rule, interval *lhs, interval *rhs, data_map *result) {
+/**
+ * Given a rule and the two intervals it matches, produce a new map by applying whatever map function.
+ * This function generates the new maps for produced intervals by either calling C code (deprecated)
+ * or evaluating the map expression from the DSL.
+ * 
+ * When used to generate a map for an atomic or exclusive rule (where there is no right-hand-side)
+ * interval, the caller should pass the left-hand-side interval for both the lhs and rhs parameters.
+ * 
+ * This function uses the non-threadsafe rule->expression_stack for map expression evaluation.
+ */
+#ifndef TEST
+static
+#endif
+void set_map(nfer_rule *rule, interval *lhs, interval *rhs, data_map *result) {
     map_iterator mit;
     map_key key_to_set;
     map_value map_expression, value_to_set;
@@ -455,7 +531,18 @@ static void set_map(nfer_rule *rule, interval *lhs, interval *rhs, data_map *res
     }
 }
 
-static void discard_older_events(pool *cache, timestamp cutoff) {
+/**
+ * Implements the window optimization by discarding intervals from a pool with an end timestamp below the cutoff.
+ * The idea is to pass a pool to this function and it will iterate over the intervals therein and remove any
+ * that are too old.
+ * 
+ * If the number of intervals removed represents too high of a proportion of the total amount of allocated
+ * storage then the pool will be purged.
+ */
+#ifndef TEST
+static
+#endif
+void discard_older_events(pool *cache, timestamp cutoff) {
     pool_iterator pit;
     interval *i;
 
@@ -475,277 +562,414 @@ static void discard_older_events(pool *cache, timestamp cutoff) {
     }
 }
 
-void add_interval_to_specification(nfer_specification *spec, interval *add, pool *out) {
-    rule_id rule_index;
-    nfer_rule *rule;
+/**
+ * Apply a rule to an input pool, producing an output pool.
+ * This matches the R[] semantics given in various papers defining the nfer language.
+ * Previous versions of the tool organized the work differently because the focus was on monitoring and
+ * there was an assumption that mostly intervals would be added one at a time.
+ * This version takes a rule and a pool as inputs and populates a pool as outputs.
+ * 
+ * precondition: rule->input_queue must have been intialized to point at the
+ * first interval in input_pool that has not yet been handled by this rule.
+ **/
+void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) {
     interval *rhs, *lhs, *new, *accepted;
-    word_id added_label;
     pool_iterator left_pit, right_pit, new_pit;
     bool exclude;
+    timestamp window_cutoff, latest_window_cutoff;
+    interval *add;
+    // for iterating over the new intervals in each cache
+    pool_iterator new_left_queue, new_right_queue;
 
-    // optimization related
-    timestamp window_cutoff = add->end - opt_window_size;
+    // clear the potential new interval pool
+    // we need to do this at the beginning - unfortunately we can't find out if this 
+    // work can be skipped because the pool may have arbitrary numbers of intervals
+    clear_pool(&rule->new_intervals);
 
-    // set the shorthand label variable
-    added_label = add->name;
+    // set window cutoff initial values
+    window_cutoff = 0;
+    // this is used at the end of the function to prune the produced pool if 
+    // windowing is enabled
+    latest_window_cutoff = 0;
 
-    // iterate over the rules
-    for (rule_index = 0; rule_index < spec->size; rule_index++) {
-        // get a direct reference to the rule
-        rule = &spec->rules[rule_index];
-        // check that we match one of the left or right label
-        // we want to do this so we can call clear_pool at the beginning only if needed
-        if (added_label == rule->left_label || added_label == rule->right_label) {
+    // this is the main idea of the algorithm here which attempts to capture the fact
+    // that there may be more than one interval in the input pool that may change
+    // specifically what happens with exclusive rules.
+    // 1. get pool queues from the ends of both left and right caches
+    //    -- these will be used to iterate over the new intervals
+    // 2. add the new intervals to either/both cache if the label matches
+    // 3. use the queue to iterate over the new intervals in the left cache
+    //    -- the crucial difference here from just using the input pool to iterate
+    //       is that the other cache already has the new intervals in it
+    //    -- HOWEVER to avoid duplicates we want to make sure that we don't check
+    //       the new intervals in the right cache unless it's an exclusive rule.
+    //       This avoids double counting.  For exclusive rules we don't iterate
+    //       over the right cache, so we don't avoid them here.
+    // 4. use the queue to iterate over the new intervals in the right cache
+    // 5. do any filtering or copying needed to eliminate, for example, non-minimal intervals
 
-            // clear the potential new interval pool
-            clear_pool(&rule->new_intervals);
 
-            if (added_label == rule->left_label) {
+    // the first part of this function iterates over the new intervals in input_pool
+    // importantly, we treat the pool as a queue here - we get the intervals that have been
+    // added since the last time this rule was called.
+    // ALSO, crucially, the input_queue has to have been initialized already.
 
-                // handle exclusions first
-                if (rule->exclusion) {
-                    exclude = false;
-                    // go through the rhs cache to see if something has occurred to negate this interval
-                    get_pool_iterator(&rule->right_cache, &right_pit);
-                    while (has_next_interval(&right_pit)) {
-                        rhs = next_interval(&right_pit);
+    // first initialize the queues for the left and right caches
+    get_pool_queue(&rule->left_cache, &new_left_queue, QUEUE_FROM_END);
+    get_pool_queue(&rule->right_cache, &new_right_queue, QUEUE_FROM_END);
+    // now copy the intervals from the input into those queues
+    while(has_next_queue_interval(input_queue)) {
+        add = next_queue_interval(input_queue);
+        if (should_log(LOG_LEVEL_DEBUG)) {
+            log_msg("Adding interval to rule (%d,%" PRIu64 ",%" PRIu64 ",", add->name, add->start, add->end);
+            log_map(&add->map);
+            log_msg(")\n");
+        }
+        if (add->name == rule->left_label) {
+            add_interval(&rule->left_cache, add);
+        }
+        if (add->name == rule->right_label) {
+            add_interval(&rule->right_cache, add);
+        }
+    }
 
-                        // if a window is used, remove the interval if it is too old
-                        if (opt_window_size != NO_WINDOW) {
-                            if (rhs->end < window_cutoff) {
-                                remove_from_pool(&right_pit);
-                                continue;
-                            }
-                        }
+    // now we can iterate over the new intervals in the left cache
+    while (has_next_queue_interval(&new_left_queue)) {
+        add = next_queue_interval(&new_left_queue);
 
-                        // rhs must come before add (this is part of the semantics of negation)
-                        if (rhs->end < add->end) {
-                            // check the exclusion conditions just like any other operator
-                            if (interval_match(rule, add, rhs)) {
-                                // if the conditions hold, exclude the match
-                                exclude = true;
-                                break;
-                            }
+        // pre-compute because we need to check if it's the latest
+        if (opt_window_size != NO_WINDOW && add->end > opt_window_size) {
+            window_cutoff = add->end - opt_window_size;
+            if (window_cutoff > latest_window_cutoff) {
+                latest_window_cutoff = window_cutoff;
+            }
+        }
+
+        // handle exclusions first
+        if (rule->exclusion) {
+            exclude = false;
+            // go through the rhs cache to see if something has occurred to negate this interval
+            get_pool_iterator(&rule->right_cache, &right_pit);
+            while (has_next_interval(&right_pit)) {
+                rhs = next_interval(&right_pit);
+                filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Checking exclusion rhs [%" PRIu64 ",%" PRIu64 "]\n", rhs->start, rhs->end);
+
+                // if a window is used, remove the interval if it is too old
+                if (opt_window_size != NO_WINDOW) {
+                    if (rhs->end < window_cutoff) {
+                        remove_from_pool(&right_pit);
+                        continue;
+                    }
+                }
+
+                // check the exclusion conditions just like any other operator
+                if (interval_match(rule, add, rhs)) {
+                    // if the conditions hold, exclude the match
+                    exclude = true;
+                    break;
+                }
+            }
+            // the interval is not negated
+            if (!exclude) {
+                // get a new interval from the new_intervals pool
+                new = allocate_interval(&rule->new_intervals);
+
+                // set the end times using the helper function
+                // use add as the rhs as semantic analysis should guarantee it doesn't matter
+                set_end_times(rule, add, add, new);
+                new->name = rule->result_label;
+
+                // again, add is rhs and it doesn't matter
+                set_map(rule, add, add, &new->map);
+            }
+
+        } else { // not an exclusion
+
+            // if this isn't an atomic rule
+            if (rule->right_label != WORD_NOT_FOUND) {
+                // go through the rhs cache for matches
+                get_pool_iterator(&rule->right_cache, &right_pit);
+                while (has_next_interval(&right_pit)) {
+
+                    // Don't go past the where the new intervals start on the rhs!
+                    // If we do we'll double count everything.
+                    // We do want to go past for exclusive rules so we are sure to exclude 
+                    // everything - this works because we skip exclusive rules when iterating
+                    // the rhs cache.
+                    // IMPORTANT: this relies on the cache not being sorted or purged!
+                    // if the cache were to be purged it could change the indices and break 
+                    // the comparison
+                    if (interval_added_after(&right_pit, &new_right_queue)) {
+                        // break this while loop over the right cache
+                        break;
+                    }
+
+
+                    rhs = next_interval(&right_pit);
+                    filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Checking inclusion rhs [%" PRIu64 ",%" PRIu64 "]\n", rhs->start, rhs->end);
+
+                    // if a window is used, remove the interval if it is too old
+                    if (opt_window_size != NO_WINDOW) {
+                        if (rhs->end < window_cutoff) {
+                            remove_from_pool(&right_pit);
+                            continue;
                         }
                     }
-                    // the interval is not negated
-                    if (!exclude) {
+
+                    // the op, phi, and where clause must all succeed to match an interval
+                    if (interval_match(rule, add, rhs)) {
                         // get a new interval from the new_intervals pool
                         new = allocate_interval(&rule->new_intervals);
 
                         // set the end times using the helper function
-                        // use add as the rhs as semantic analysis should guarantee it doesn't matter
-                        set_end_times(rule, add, add, new);
+                        set_end_times(rule, add, rhs, new);
                         new->name = rule->result_label;
 
-                        // again, add is rhs and it doesn't matter
-                        set_map(rule, add, add, &new->map);
+                        set_map(rule, add, rhs, &new->map);
                     }
+                } // for right_cache
 
-                } else { // not an exclusion
+            } else {
+                // this is an atomic rule, so just test
+                // set rhs to add just to it doesn't segfault -- the values shouldn't matter
+                if (interval_match(rule, add, add)) {
+                    // get a new interval from the new_intervals pool
+                    new = allocate_interval(&rule->new_intervals);
 
-                    // if this isn't an atomic rule
-                    if (rule->right_label != WORD_NOT_FOUND) {
-                        // go through the rhs cache for matches
-                        get_pool_iterator(&rule->right_cache, &right_pit);
-                        while (has_next_interval(&right_pit)) {
-                            rhs = next_interval(&right_pit);
+                    // set the end times using the helper function
+                    // again use add as the rhs, again it shouldn't matter
+                    set_end_times(rule, add, add, new);
 
-                            // if a window is used, remove the interval if it is too old
-                            if (opt_window_size != NO_WINDOW) {
-                                if (rhs->end < window_cutoff) {
-                                    remove_from_pool(&right_pit);
-                                    continue;
-                                }
-                            }
+                    new->name = rule->result_label;
 
-                            // the op, phi, and where clause must all succeed to match an interval
-                            if (interval_match(rule, add, rhs)) {
-                                // get a new interval from the new_intervals pool
-                                new = allocate_interval(&rule->new_intervals);
-
-                                // set the end times using the helper function
-                                set_end_times(rule, add, rhs, new);
-                                new->name = rule->result_label;
-
-                                set_map(rule, add, rhs, &new->map);
-                            }
-                        } // for right_cache
-
-                    } else {
-                        // this is an atomic rule, so just test
-                        // set rhs to add just to it doesn't segfault -- the values shouldn't matter
-                        if (interval_match(rule, add, add)) {
-                            // get a new interval from the new_intervals pool
-                            new = allocate_interval(&rule->new_intervals);
-
-                            // set the end times using the helper function
-                            // again use add as the rhs, again it shouldn't matter
-                            set_end_times(rule, add, add, new);
-
-                            new->name = rule->result_label;
-
-                            // again, add is rhs and it doesn't matter
-                            set_map(rule, add, add, &new->map);
-                        }
-                    }
-                } // end of inclusion rule for lhs match
-
-                // if using the most recent optimization, clear the cache before adding
-                if (opt_most_recent) {
-                    clear_pool(&rule->left_cache);
+                    // again, add is rhs and it doesn't matter
+                    set_map(rule, add, add, &new->map);
                 }
-                // add to the left hand cache 
-                add_interval(&rule->left_cache, add);
+            }
+        } // end of inclusion rule for lhs match
 
-            } // end of lhs match
+    } // end of iterating over the new left side matches
 
-            if (added_label == rule->right_label) {
+    // now iterate over the new rules in the right side cache
+    while (has_next_queue_interval(&new_right_queue)) {
+        add = next_queue_interval(&new_right_queue);
 
-                // skip this rhs match if the rule is a negation
-                if (!rule->exclusion) {
+        // pre-compute because we need to check if it's the latest
+        if (opt_window_size != NO_WINDOW && add->end > opt_window_size) {
+            window_cutoff = add->end - opt_window_size;
+            if (window_cutoff > latest_window_cutoff) {
+                latest_window_cutoff = window_cutoff;
+            }
+        }
 
-                    // go through the lhs cache for matches
-                    get_pool_iterator(&rule->left_cache, &left_pit);
-                    while (has_next_interval(&left_pit)) {
-                        lhs = next_interval(&left_pit);
+        // skip this rhs match if the rule is a negation
+        if (!rule->exclusion) {
 
-                        // if a window is used, remove the interval if it is too old
-                        if (opt_window_size != NO_WINDOW) {
-                            if (lhs->end < window_cutoff) {
-                                remove_from_pool(&left_pit);
-                                continue;
-                            }
-                        }
+            // go through the lhs cache for matches
+            get_pool_iterator(&rule->left_cache, &left_pit);
+            while (has_next_interval(&left_pit)) {
+                lhs = next_interval(&left_pit);
+                filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Checking lhs [%" PRIu64 ",%" PRIu64 "]\n", lhs->start, lhs->end);
 
-                        // the op, phi, and where clause must all succeed to match an interval
-                        if (interval_match(rule, lhs, add)) {
-                            // get a new interval from the new_intervals pool
-                            new = allocate_interval(&rule->new_intervals);
-
-                            // set the end times using the helper function
-                            set_end_times(rule, lhs, add, new);
-                            new->name = rule->result_label;
-
-                            set_map(rule, lhs, add, &new->map);
-                        }
-                    } // for left_cache
-                } // rule is not exclusion
-
-                // if using the most recent optimization, clear the cache before adding
-                if (opt_most_recent) {
-                    clear_pool(&rule->right_cache);
-                }
-                // add to the right hand cache
-                add_interval(&rule->right_cache, add);
-            } // rhs label matches added interval
-
-            // skip this work if not testing for minimality
-            if (!opt_full) {
-                // before testing minimality, if a window is used, remove anything from the produced pool that is too old
-                // if there's no minimality checking, then the produced pool is empty
+                // if a window is used, remove the interval if it is too old
                 if (opt_window_size != NO_WINDOW) {
-                    discard_older_events(&rule->produced, window_cutoff);
+                    if (lhs->end < window_cutoff) {
+                        remove_from_pool(&left_pit);
+                        continue;
+                    }
                 }
 
-                // now check for minimality and remove anything that isn't
-                select_minimal(&rule->new_intervals, &rule->produced);
-            }
-            // finally add anything left to the produced pool, and to the output if the rule isn't hidden
-            // recurse on the interval being added
-            get_pool_iterator(&rule->new_intervals, &new_pit);
-            while(has_next_interval(&new_pit)) {
-                accepted = next_interval(&new_pit);
-                /* set the hidden flag */
-                accepted->hidden = rule->hidden;
+                // the op, phi, and where clause must all succeed to match an interval
+                if (interval_match(rule, lhs, add)) {
+                    // get a new interval from the new_intervals pool
+                    new = allocate_interval(&rule->new_intervals);
 
-                // skip adding to the produced pool if not using minimality
-                if (!opt_full) {
-                    add_interval(&rule->produced, accepted);
+                    // set the end times using the helper function
+                    set_end_times(rule, lhs, add, new);
+                    new->name = rule->result_label;
+
+                    set_map(rule, lhs, add, &new->map);
                 }
-                add_interval(out, accepted);
-            }
+            } // for left_cache
+        } // rule is not exclusion
 
-        } // if the label is referenced in this rule
-    } // for rules in the spec
+    } // end of the loop over the new intervals in the right cache
+
+    // check if we need to purge the caches
+    if (opt_window_size != NO_WINDOW) {
+        // above some threshold, purge the pool to free up space
+        // the threshold is if the number of removed items is at least some percent of the total size
+        // purge_pool is O(n), so this isn't too expensive.  Maybe try decreasing the threshold.
+        if ((float)(rule->left_cache.removed) / (float)(rule->left_cache.size) > PURGE_THRESHOLD) {
+            filter_log_msg(LOG_LEVEL_INFO, "Purging left cache of rule %x due to removed reaching threshold %f\n", rule, PURGE_THRESHOLD);
+            purge_pool(&rule->left_cache);
+        }
+        if ((float)(rule->right_cache.removed) / (float)(rule->right_cache.size) > PURGE_THRESHOLD) {
+            filter_log_msg(LOG_LEVEL_INFO, "Purging right cache of rule %x due to removed reaching threshold %f\n", rule, PURGE_THRESHOLD);
+            purge_pool(&rule->right_cache);
+        }
+    }
+
+    // skip this work if not testing for minimality
+    if (!opt_full) {
+        // before testing minimality, if a window is used, remove anything from the produced pool that is too old
+        // if there's no minimality checking, then the produced pool is empty
+        // also, if latest is set to 0 then there's no point in calling this
+        if (opt_window_size != NO_WINDOW && latest_window_cutoff > 0) {
+            discard_older_events(&rule->produced, latest_window_cutoff);
+        }
+
+        // now check for minimality and remove anything that isn't
+        select_minimal(&rule->new_intervals, &rule->produced);
+    }
+    // finally add anything left to the produced pool, and to the output if the rule isn't hidden
+    // TODO: figure out if we should just build new intervals in output and then remove/hide them 
+    // alternatively we could do this in produced!  It may be worth trying to figure out how to 
+    // even share somehow between the two pools.
+    get_pool_iterator(&rule->new_intervals, &new_pit);
+    while(has_next_interval(&new_pit)) {
+        accepted = next_interval(&new_pit);
+        /* set the hidden flag */
+        accepted->hidden = rule->hidden;
+
+        // skip adding to the produced pool if not using minimality
+        if (!opt_full) {
+            add_interval(&rule->produced, accepted);
+        }
+        
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Adding interval to output pool (%d,%" PRIu64 ",%" PRIu64 ")\n", accepted->name, accepted->start, accepted->end);
+        add_interval(output_pool, accepted);
+    }
 }
 
 /**
- * For embedded goodness, we avoid recursion.
+ * Apply a specification one time to an input pool to produce an output pool.
+ * Each rule, applied in order, is passed both the original input and the output from previous 
+ * rule applications.
+ * The input pool should contain the new intervals to add while the output pool may contain anything.
+ * Both pools will be augmented with the produced intervals.
+ * 
+ * This is equivalent to the S[] function from nfer semantics.
+ * 
+ * Crucially, the function will modify both the input and output pools, with both having the 
+ * same intervals added with the exception of the final rule output which does not need to be
+ * added to the input.  The reason for this is that each rule gets the union of the input 
+ * and the already produced intervals as its input.
+ * 
+ * Assumes the spec and input pool are non-empty.
+ * 
+ */
+void apply_specification(nfer_specification *spec, pool *input_pool, pool *output_pool) {
+    rule_id id;
+    nfer_rule *rule;
+    pool_iterator output_queue;
+    interval *to_copy;
+
+
+    // iterate over the rules, applying them to the input
+    for (id = 0; id < spec->size; id++) {
+        rule = &spec->rules[id];
+
+        // set up the queue on output_pool
+        // this will be used to copy intervals into input_pool
+        get_pool_queue(output_pool, &output_queue, QUEUE_FROM_END);
+
+        filter_log_msg(LOG_LEVEL_DEBUG, "Applying %d of %d rule %d :- %d %s %d\n", id+1, spec->size, rule->result_label, rule->left_label, operators[rule->op_code].name, rule->right_label);
+        // apply one rule, putting the output directly into the output pool
+        apply_rule(rule, &rule->input_queue, output_pool);
+
+        // now set up the queue on input_pool
+        // this will be used the next time the same rule is called
+        // the trouble is that we need a handle to what intervals the rule
+        // has already seen so it doesn't get passed the same ones twice
+        get_pool_queue(input_pool, &rule->input_queue, QUEUE_FROM_END);
+
+        // we need to copy any created intervals from this rule into the input pool
+        // this is so the next rule application gets them sort of for free
+        while (has_next_queue_interval(&output_queue)) {
+            to_copy = next_queue_interval(&output_queue);
+            filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copying interval to input pool (%d,%" PRIu64 ",%" PRIu64 ")\n", to_copy->name, to_copy->start, to_copy->end);
+            add_interval(input_pool, to_copy);
+        }
+    }
+}
+
+/**
+ * Apply an nfer specification to a pool until a fixed point is reached.
+ * This function implements the T[] function from nfer semantics.  It calls the S
+ * function (apply_specification) until that function stops producing new intervals.
+ * 
+ * This implements the new semantics that include an optimization to skip iteration
+ * if there is no cycle in the rules.  In that case, it will simply apply them
+ * once and return, since there can be no more more intervals produced.
+ * 
+ * Assumes that the spec and input pool are non-empty.
+ * Output pool will be purged and sorted at the end.
  */
 void run_nfer(nfer_specification *spec, pool *input_pool, pool *output_pool) {
-    int out_pool_index, cycle;
-    interval *intv;
-    pool_iterator pit;
-#ifndef NO_DYNAMIC_MEMORY
-    // this is a global in the compiled monitor
-    pool internal_pool[2];
-#endif
-    pool *in, *out;
-    bool converged = false;
+    pool_index previous_size;
+    unsigned int loop_count;
+    rule_id id;
+    nfer_rule *rule;
 
-    // initially, point at the input pool
-    in = input_pool;
-    out_pool_index = 0;
-    cycle = 0;
+    // store the starting size, which should be zero but we don't need to require that
+    previous_size = output_pool->size;
+    // keep track of the number of times we have applied the rules
+    loop_count = 0;
 
-    filter_log_msg(LOG_LEVEL_DEBUG, "Running nfer with internal pools [%x,%x]\n", &internal_pool[0], &internal_pool[1]);
-
-    while (!converged) {
-        cycle++;
-        filter_log_msg(LOG_LEVEL_DEBUG, "Starting cycle %d\n", cycle);
-
-        // set up the output pool
-        out = &internal_pool[out_pool_index % 2];
-        out_pool_index++;
-        #ifndef NO_DYNAMIC_MEMORY
-        // initializing a static pool is destructive
-        initialize_pool(out);
-        #endif
-
-        // now run the nfer spec on the intervals in the pool
-        get_pool_iterator(in, &pit);
-        while (has_next_interval(&pit)) {
-            intv = next_interval(&pit);
-            if (should_log(LOG_LEVEL_DEBUG)) {
-                log_msg("Adding interval to spec (%d,%" PRIu64 ",%" PRIu64 ",", intv->name, intv->start, intv->end);
-                log_map(&intv->map);
-                log_msg(")\n");
-            }
-            // test the specification on each interval in the pool
-            add_interval_to_specification(spec, intv, out);
-        }
-
-        // make sure not to mess up the input
-        if (in != input_pool) {
-            destroy_pool(in);
-        }
-        // swap in for out
-        in = out;
-
-        if (out->size > 0) {
-            // add the resulting intervals to the output pool, just appending for now
-            // make sure to exclude the hidden intervals
-            copy_pool(output_pool, out, COPY_POOL_APPEND, COPY_POOL_EXCLUDE_HIDDEN);
-        } else {
-            // nothing new, we converged
-            converged = true;
-        }
+    // initialize the input_queues for all the rules to point at the beginning of input_pool
+    // apply_rule uses the input queue to iterate over the input pool and it needs to be 
+    // initialized outside of apply_specification since that function will be called multiple
+    // times to reach a fixed point.  apply_specification will update the input_queues to
+    // keep track of what intervals each rule has seen so far.
+    for (id = 0; id < spec->size; id++) {
+        rule = &spec->rules[id];
+        get_pool_queue(input_pool, &rule->input_queue, QUEUE_FROM_BEGINNING);
     }
 
-    // final teardown
-    if (cycle > 0) {
-        destroy_pool(out);
+    // always run at least once
+    // if there is not a cycle, stop there
+    // if there is a cycle, then keep going if new intervals were produced by the last application
+    while (loop_count == 0 || (spec->analysis.has_cycle && (output_pool->size - output_pool->removed) > previous_size)) {
+        previous_size = output_pool->size - output_pool->removed;
+        filter_log_msg(LOG_LEVEL_DEBUG, "Iteration %d: applying spec to input pool size %d with partial output size %d\n", loop_count, input_pool->size, output_pool->size - output_pool->removed);
+        apply_specification(spec, input_pool, output_pool);
+        loop_count++;
     }
+    filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Reached a fixed point in %d iteration(s) with %d new intervals produced\n", loop_count, (output_pool->size - output_pool->removed));
+
     // sort the result
-    if (output_pool->size > 0) {
+    // make sure to account for removed intervals, since they may be trimmed by a selection function
+    if (output_pool->size - output_pool->removed > 0) {
+        // remove any hidden intervals from the output before sorting
+        remove_hidden(output_pool);
+    }
+    if (output_pool->size - output_pool->removed > 0) {
+        // then sort, which also purges the removed hidden intervals
         sort_pool(output_pool);
     }
 }
 
-
-
-static void write_rule(nfer_rule *rule, dictionary *name_dict, dictionary *key_dict, dictionary *val_dict, int log_to) {
+/**
+ * Write an nfer rule out in a format that should be parsable using this tool.
+ * This function takes a rule in the internal format and, assuming it doesn't use any
+ * specially linked C code, writes out the rule such that it could be reparsed into
+ * the same rule data structure by the DSL code.
+ * 
+ * The function requires the three dictionaries for obvious reasons.
+ * 
+ * It writes using the write_msg function and passed the log_to parameter along to that.
+ * This means it can potentially write to different file handles.
+ * 
+ * The output from the function does not have to exactly match what was parsed to
+ * generate the rule, but it does have to match the semantics of that rule.
+ * Of course, the DSL supports nested rules and this will only ever output a single,
+ * binary (or atomic) rule.
+ */
+#ifndef TEST
+static
+#endif
+void write_rule(nfer_rule *rule, dictionary *name_dict, dictionary *key_dict, dictionary *val_dict, int log_to) {
     map_iterator mit;
     map_key key;
     map_value value;
@@ -770,21 +994,13 @@ static void write_rule(nfer_rule *rule, dictionary *name_dict, dictionary *key_d
     }
     // need to support both the C API and the DSL
     if (rule->phi) {
-        write_msg(log_to, " phi %s ", rule->phi->name);
+        write_msg(log_to, " phi %s", rule->phi->name);
     }
     #ifndef NO_DYNAMIC_MEMORY
     // skip all this if there's no dynamic memory, as write_expression won't be implemented
     if (rule->where_expression) {
         write_msg(log_to, " where ");
         write_expression(rule->where_expression, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
-    }
-    if (rule->begin_expression) {
-        write_msg(log_to, " begin ");
-        write_expression(rule->begin_expression, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
-    }
-    if (rule->end_expression) {
-        write_msg(log_to, " end ");
-        write_expression(rule->end_expression, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
     }
     get_map_iterator(&rule->map_expressions, &mit);
     if (has_next_map_key(&mit)) {
@@ -802,6 +1018,14 @@ static void write_rule(nfer_rule *rule, dictionary *name_dict, dictionary *key_d
             write_expression(value.value.pointer, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
         }
         write_msg(log_to, " }");
+    }
+    if (rule->begin_expression) {
+        write_msg(log_to, " begin ");
+        write_expression(rule->begin_expression, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
+    }
+    if (rule->end_expression) {
+        write_msg(log_to, " end ");
+        write_expression(rule->end_expression, key_dict, val_dict, get_word(name_dict, rule->left_label), get_word(name_dict, rule->right_label), log_to);
     }
     #endif // NO_DYNAMIC_MEMORY
 }

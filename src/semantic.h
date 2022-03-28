@@ -43,6 +43,7 @@ typedef enum {
 #define NOT_WHERE_EXPR false
 #define WHERE_EXPR true
 
+void set_imported(ast_node *);
 ast_value_type check_types(ast_node *);
 bool determine_labels(ast_node *, dictionary *, dictionary *, dictionary *);
 bool determine_fields(ast_node *, dictionary *, dictionary *, dictionary *);

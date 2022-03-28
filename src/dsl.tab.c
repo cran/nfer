@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison implementation for Yacc-like parsers in C
 
@@ -46,10 +46,10 @@
    USER NAME SPACE" below.  */
 
 /* Identify Bison output, and Bison version.  */
-#define YYBISON 30706
+#define YYBISON 30802
 
 /* Bison version string.  */
-#define YYBISON_VERSION "3.7.6"
+#define YYBISON_VERSION "3.8.2"
 
 /* Skeleton name.  */
 #define YYSKELETON_NAME "yacc.c"
@@ -316,12 +316,18 @@ typedef int yy_state_fast_t;
 # define YY_USE(E) /* empty */
 #endif
 
-#if defined __GNUC__ && ! defined __ICC && 407 <= __GNUC__ * 100 + __GNUC_MINOR__
 /* Suppress an incorrect diagnostic about yylval being uninitialized.  */
-# define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                            \
+#if defined __GNUC__ && ! defined __ICC && 406 <= __GNUC__ * 100 + __GNUC_MINOR__
+# if __GNUC__ * 100 + __GNUC_MINOR__ < 407
+#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
+    _Pragma ("GCC diagnostic push")                                     \
+    _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")
+# else
+#  define YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN                           \
     _Pragma ("GCC diagnostic push")                                     \
     _Pragma ("GCC diagnostic ignored \"-Wuninitialized\"")              \
     _Pragma ("GCC diagnostic ignored \"-Wmaybe-uninitialized\"")
+# endif
 # define YY_IGNORE_MAYBE_UNINITIALIZED_END      \
     _Pragma ("GCC diagnostic pop")
 #else
@@ -543,7 +549,7 @@ static const yytype_int8 yytranslate[] =
 };
 
 #if YYDEBUG
-  /* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
+/* YYRLINE[YYN] -- Source line where rule number YYN was defined.  */
 static const yytype_uint8 yyrline[] =
 {
        0,    76,    76,    77,    82,    83,    87,    88,    92,    93,
@@ -587,20 +593,6 @@ yysymbol_name (yysymbol_kind_t yysymbol)
 }
 #endif
 
-#ifdef YYPRINT
-/* YYTOKNUM[NUM] -- (External) token number corresponding to the
-   (internal) symbol number NUM (which must be that of a token).  */
-static const yytype_int16 yytoknum[] =
-{
-       0,   256,   257,   258,   259,   260,   261,   262,   263,   264,
-     265,   266,   267,   268,   269,   270,   271,   272,   273,   274,
-     275,   276,   277,   278,   279,   280,   281,   282,   283,   284,
-     285,   286,   287,   288,   289,   290,   291,   292,   293,   294,
-     295,   296,   297,   298,   299,   300,   301,   302,   303,   304,
-     305,   306,   307
-};
-#endif
-
 #define YYPACT_NINF (-38)
 
 #define yypact_value_is_default(Yyn) \
@@ -611,8 +603,8 @@ static const yytype_int16 yytoknum[] =
 #define yytable_value_is_error(Yyn) \
   ((Yyn) == YYTABLE_NINF)
 
-  /* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
-     STATE-NUM.  */
+/* YYPACT[STATE-NUM] -- Index in YYTABLE of the portion describing
+   STATE-NUM.  */
 static const yytype_int16 yypact[] =
 {
       -3,    -8,    17,    23,   -38,   -38,    40,     5,    37,   -38,
@@ -629,9 +621,9 @@ static const yytype_int16 yypact[] =
        2,    36,   116,    87,   -38
 };
 
-  /* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
-     Performed when YYTABLE does not specify something else to do.  Zero
-     means the default is an error.  */
+/* YYDEFACT[STATE-NUM] -- Default reduction number in state STATE-NUM.
+   Performed when YYTABLE does not specify something else to do.  Zero
+   means the default is an error.  */
 static const yytype_int8 yydefact[] =
 {
       11,     0,     0,     0,     3,     2,    11,     0,     0,     1,
@@ -648,23 +640,23 @@ static const yytype_int8 yydefact[] =
        0,    17,    19,     0,    18
 };
 
-  /* YYPGOTO[NTERM-NUM].  */
+/* YYPGOTO[NTERM-NUM].  */
 static const yytype_int8 yypgoto[] =
 {
      -38,   -38,    51,   -38,    55,    10,   -38,   -38,   -38,     8,
      -38,    75,   -37
 };
 
-  /* YYDEFGOTO[NTERM-NUM].  */
+/* YYDEFGOTO[NTERM-NUM].  */
 static const yytype_int8 yydefgoto[] =
 {
        0,     3,     4,    30,    58,     5,     6,    28,    56,   104,
       82,    13,    42
 };
 
-  /* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
-     positive, shift that token.  If negative, reduce the rule whose
-     number is the opposite.  If YYTABLE_NINF, syntax error.  */
+/* YYTABLE[YYPACT[STATE-NUM]] -- What to do in state STATE-NUM.  If
+   positive, shift that token.  If negative, reduce the rule whose
+   number is the opposite.  If YYTABLE_NINF, syntax error.  */
 static const yytype_int8 yytable[] =
 {
       61,    86,     1,    62,    63,    33,    34,    35,    36,    37,
@@ -711,8 +703,8 @@ static const yytype_int8 yycheck[] =
       28,    29,    30,    31,    32,    33,    34
 };
 
-  /* YYSTOS[STATE-NUM] -- The (internal number of the) accessing
-     symbol of state STATE-NUM.  */
+/* YYSTOS[STATE-NUM] -- The symbol kind of the accessing symbol of
+   state STATE-NUM.  */
 static const yytype_int8 yystos[] =
 {
        0,     5,    14,    54,    55,    58,    59,    21,     5,     0,
@@ -729,7 +721,7 @@ static const yytype_int8 yystos[] =
       19,    65,    65,    11,    62
 };
 
-  /* YYR1[YYN] -- Symbol number of symbol that rule YYN derives.  */
+/* YYR1[RULE-NUM] -- Symbol kind of the left-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr1[] =
 {
        0,    53,    54,    54,    55,    55,    56,    56,    57,    57,
@@ -740,7 +732,7 @@ static const yytype_int8 yyr1[] =
       65,    65,    65,    65,    65,    65,    65,    65,    65,    65
 };
 
-  /* YYR2[YYN] -- Number of symbols on the right hand side of rule YYN.  */
+/* YYR2[RULE-NUM] -- Number of symbols on the right-hand side of rule RULE-NUM.  */
 static const yytype_int8 yyr2[] =
 {
        0,     2,     1,     1,     6,     7,     3,     0,     1,     3,
@@ -760,6 +752,7 @@ enum { YYENOMEM = -2 };
 #define YYACCEPT        goto yyacceptlab
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
+#define YYNOMEM         goto yyexhaustedlab
 
 
 #define YYRECOVERING()  (!!yyerrstatus)
@@ -827,12 +820,19 @@ do {                                            \
 } while (0)
 
 
-/* YY_LOCATION_PRINT -- Print the location on the stream.
+/* YYLOCATION_PRINT -- Print the location on the stream.
    This macro was not mandated originally: define only if we know
    we won't break user code: when these are the locations we know.  */
 
-# ifndef YY_LOCATION_PRINT
-#  if defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
+# ifndef YYLOCATION_PRINT
+
+#  if defined YY_LOCATION_PRINT
+
+   /* Temporary convenience wrapper in case some people defined the
+      undocumented and private YY_LOCATION_PRINT macros.  */
+#   define YYLOCATION_PRINT(File, Loc)  YY_LOCATION_PRINT(File, *(Loc))
+
+#  elif defined YYLTYPE_IS_TRIVIAL && YYLTYPE_IS_TRIVIAL
 
 /* Print *YYLOCP on YYO.  Private, do not rely on its existence. */
 
@@ -860,15 +860,23 @@ yy_location_print_ (FILE *yyo, YYLTYPE const * const yylocp)
         res += YYFPRINTF (yyo, "-%d", end_col);
     }
   return res;
- }
+}
 
-#   define YY_LOCATION_PRINT(File, Loc)          \
-  yy_location_print_ (File, &(Loc))
+#   define YYLOCATION_PRINT  yy_location_print_
+
+    /* Temporary convenience wrapper in case some people defined the
+       undocumented and private YY_LOCATION_PRINT macros.  */
+#   define YY_LOCATION_PRINT(File, Loc)  YYLOCATION_PRINT(File, &(Loc))
 
 #  else
-#   define YY_LOCATION_PRINT(File, Loc) ((void) 0)
+
+#   define YYLOCATION_PRINT(File, Loc) ((void) 0)
+    /* Temporary convenience wrapper in case some people defined the
+       undocumented and private YY_LOCATION_PRINT macros.  */
+#   define YY_LOCATION_PRINT  YYLOCATION_PRINT
+
 #  endif
-# endif /* !defined YY_LOCATION_PRINT */
+# endif /* !defined YYLOCATION_PRINT */
 
 
 # define YY_SYMBOL_PRINT(Title, Kind, Value, Location)                    \
@@ -899,10 +907,6 @@ yy_symbol_value_print (FILE *yyo,
   YY_USE (ast_root);
   if (!yyvaluep)
     return;
-# ifdef YYPRINT
-  if (yykind < YYNTOKENS)
-    YYPRINT (yyo, yytoknum[yykind], *yyvaluep);
-# endif
   YY_IGNORE_MAYBE_UNINITIALIZED_BEGIN
   YY_USE (yykind);
   YY_IGNORE_MAYBE_UNINITIALIZED_END
@@ -920,7 +924,7 @@ yy_symbol_print (FILE *yyo,
   YYFPRINTF (yyo, "%s %s (",
              yykind < YYNTOKENS ? "token" : "nterm", yysymbol_name (yykind));
 
-  YY_LOCATION_PRINT (yyo, *yylocationp);
+  YYLOCATION_PRINT (yyo, yylocationp);
   YYFPRINTF (yyo, ": ");
   yy_symbol_value_print (yyo, yykind, yyvaluep, yylocationp, scanner, parser_dict, ast_root);
   YYFPRINTF (yyo, ")");
@@ -1388,6 +1392,7 @@ YYLTYPE yylloc = yyloc_default;
   YYDPRINTF ((stderr, "Starting parse\n"));
 
   yychar = YYEMPTY; /* Cause a token to be read.  */
+
   yylsp[0] = yylloc;
   goto yysetstate;
 
@@ -1414,7 +1419,7 @@ yysetstate:
 
   if (yyss + yystacksize - 1 <= yyssp)
 #if !defined yyoverflow && !defined YYSTACK_RELOCATE
-    goto yyexhaustedlab;
+    YYNOMEM;
 #else
     {
       /* Get the current used size of the three stacks, in elements.  */
@@ -1445,7 +1450,7 @@ yysetstate:
 # else /* defined YYSTACK_RELOCATE */
       /* Extend the stack our own way.  */
       if (YYMAXDEPTH <= yystacksize)
-        goto yyexhaustedlab;
+        YYNOMEM;
       yystacksize *= 2;
       if (YYMAXDEPTH < yystacksize)
         yystacksize = YYMAXDEPTH;
@@ -1456,7 +1461,7 @@ yysetstate:
           YY_CAST (union yyalloc *,
                    YYSTACK_ALLOC (YY_CAST (YYSIZE_T, YYSTACK_BYTES (yystacksize))));
         if (! yyptr)
-          goto yyexhaustedlab;
+          YYNOMEM;
         YYSTACK_RELOCATE (yyss_alloc, yyss);
         YYSTACK_RELOCATE (yyvs_alloc, yyvs);
         YYSTACK_RELOCATE (yyls_alloc, yyls);
@@ -1479,6 +1484,7 @@ yysetstate:
         YYABORT;
     }
 #endif /* !defined yyoverflow && !defined YYSTACK_RELOCATE */
+
 
   if (yystate == YYFINAL)
     YYACCEPT;
@@ -1598,353 +1604,353 @@ yyreduce:
   case 2: /* specification: rule_list  */
 #line 76 "src/dsl.y"
                                    { *ast_root = (yyvsp[0].node); }
-#line 1602 "gensrc/parser/dsl.tab.c"
+#line 1608 "gensrc/parser/dsl.tab.c"
     break;
 
   case 3: /* specification: module_list  */
 #line 77 "src/dsl.y"
                                    { *ast_root = (yyvsp[0].node); }
-#line 1608 "gensrc/parser/dsl.tab.c"
+#line 1614 "gensrc/parser/dsl.tab.c"
     break;
 
   case 4: /* module_list: MODULE IDENTIFIER LBRACE imports rule_list RBRACE  */
 #line 82 "src/dsl.y"
                                                                          { (yyval.node) = new_module_list((yyvsp[-4].string_value), (yyvsp[-2].node), (yyvsp[-1].node), NULL, &(yylsp[-5])); }
-#line 1614 "gensrc/parser/dsl.tab.c"
+#line 1620 "gensrc/parser/dsl.tab.c"
     break;
 
   case 5: /* module_list: MODULE IDENTIFIER LBRACE imports rule_list RBRACE module_list  */
 #line 83 "src/dsl.y"
                                                                          { (yyval.node) = new_module_list((yyvsp[-5].string_value), (yyvsp[-3].node), (yyvsp[-2].node), (yyvsp[0].node), &(yylsp[-6])); }
-#line 1620 "gensrc/parser/dsl.tab.c"
+#line 1626 "gensrc/parser/dsl.tab.c"
     break;
 
   case 6: /* imports: IMPORT identifier_list EOL  */
 #line 87 "src/dsl.y"
                                                 { (yyval.node) = (yyvsp[-1].node); }
-#line 1626 "gensrc/parser/dsl.tab.c"
+#line 1632 "gensrc/parser/dsl.tab.c"
     break;
 
   case 7: /* imports: %empty  */
 #line 88 "src/dsl.y"
                                                 { (yyval.node) = NULL; }
-#line 1632 "gensrc/parser/dsl.tab.c"
+#line 1638 "gensrc/parser/dsl.tab.c"
     break;
 
   case 8: /* identifier_list: IDENTIFIER  */
 #line 92 "src/dsl.y"
                                                 { (yyval.node) = new_import_list((yyvsp[0].string_value), NULL, &(yylsp[0])); }
-#line 1638 "gensrc/parser/dsl.tab.c"
+#line 1644 "gensrc/parser/dsl.tab.c"
     break;
 
   case 9: /* identifier_list: IDENTIFIER LISTSEP identifier_list  */
 #line 93 "src/dsl.y"
                                                 { (yyval.node) = new_import_list((yyvsp[-2].string_value), (yyvsp[0].node), &(yylsp[-2])); }
-#line 1644 "gensrc/parser/dsl.tab.c"
+#line 1650 "gensrc/parser/dsl.tab.c"
     break;
 
   case 10: /* rule_list: rule rule_list  */
 #line 96 "src/dsl.y"
                                                 { (yyval.node) = new_rule_list((yyvsp[-1].node), (yyvsp[0].node)); }
-#line 1650 "gensrc/parser/dsl.tab.c"
+#line 1656 "gensrc/parser/dsl.tab.c"
     break;
 
   case 11: /* rule_list: %empty  */
 #line 97 "src/dsl.y"
                                                 { (yyval.node) = NULL; }
-#line 1656 "gensrc/parser/dsl.tab.c"
+#line 1662 "gensrc/parser/dsl.tab.c"
     break;
 
   case 12: /* rule: IDENTIFIER YIELDS interval_expr where_expr map_expr end_points  */
 #line 101 "src/dsl.y"
                                                                          { (yyval.node) = new_rule((yyvsp[-5].string_value), (yyvsp[-3].node), (yyvsp[-2].node), (yyvsp[-1].node), (yyvsp[0].node), &(yylsp[-5])); }
-#line 1662 "gensrc/parser/dsl.tab.c"
+#line 1668 "gensrc/parser/dsl.tab.c"
     break;
 
   case 13: /* where_expr: WHERE expr  */
 #line 104 "src/dsl.y"
                                                 { (yyval.node) = (yyvsp[0].node); }
-#line 1668 "gensrc/parser/dsl.tab.c"
+#line 1674 "gensrc/parser/dsl.tab.c"
     break;
 
   case 14: /* where_expr: %empty  */
 #line 105 "src/dsl.y"
                                                 { (yyval.node) = NULL; }
-#line 1674 "gensrc/parser/dsl.tab.c"
+#line 1680 "gensrc/parser/dsl.tab.c"
     break;
 
   case 15: /* map_expr: MAP LBRACE map_expr_list RBRACE  */
 #line 109 "src/dsl.y"
                                                 { (yyval.node) = (yyvsp[-1].node); }
-#line 1680 "gensrc/parser/dsl.tab.c"
+#line 1686 "gensrc/parser/dsl.tab.c"
     break;
 
   case 16: /* map_expr: %empty  */
 #line 110 "src/dsl.y"
                                                 { (yyval.node) = NULL; }
-#line 1686 "gensrc/parser/dsl.tab.c"
+#line 1692 "gensrc/parser/dsl.tab.c"
     break;
 
   case 17: /* map_expr_list: IDENTIFIER MAPSTO expr  */
 #line 114 "src/dsl.y"
                                                         { (yyval.node) = new_map_expr_list((yyvsp[-2].string_value), (yyvsp[0].node), NULL, &(yylsp[-2])); }
-#line 1692 "gensrc/parser/dsl.tab.c"
+#line 1698 "gensrc/parser/dsl.tab.c"
     break;
 
   case 18: /* map_expr_list: IDENTIFIER MAPSTO expr LISTSEP map_expr_list  */
 #line 115 "src/dsl.y"
                                                         { (yyval.node) = new_map_expr_list((yyvsp[-4].string_value), (yyvsp[-2].node), (yyvsp[0].node), &(yylsp[-4])); }
-#line 1698 "gensrc/parser/dsl.tab.c"
+#line 1704 "gensrc/parser/dsl.tab.c"
     break;
 
   case 19: /* end_points: BEGINTOKEN expr ENDTOKEN expr  */
 #line 119 "src/dsl.y"
                                                 { (yyval.node) = new_end_points((yyvsp[-2].node), (yyvsp[0].node), &(yylsp[-3])); }
-#line 1704 "gensrc/parser/dsl.tab.c"
+#line 1710 "gensrc/parser/dsl.tab.c"
     break;
 
   case 20: /* end_points: %empty  */
 #line 120 "src/dsl.y"
                                                 { (yyval.node) = NULL; }
-#line 1710 "gensrc/parser/dsl.tab.c"
+#line 1716 "gensrc/parser/dsl.tab.c"
     break;
 
   case 21: /* interval_expr: IDENTIFIER LABELS IDENTIFIER  */
 #line 124 "src/dsl.y"
                                                 { (yyval.node) = new_atomic_interval_expr((yyvsp[-2].string_value), (yyvsp[0].string_value), &(yylsp[-2]), &(yylsp[0])); }
-#line 1716 "gensrc/parser/dsl.tab.c"
+#line 1722 "gensrc/parser/dsl.tab.c"
     break;
 
   case 22: /* interval_expr: IDENTIFIER  */
 #line 125 "src/dsl.y"
                                                 { (yyval.node) = new_atomic_interval_expr(WORD_NOT_FOUND, (yyvsp[0].string_value), &(yylsp[0]), NULL); }
-#line 1722 "gensrc/parser/dsl.tab.c"
+#line 1728 "gensrc/parser/dsl.tab.c"
     break;
 
   case 23: /* interval_expr: interval_expr ALSO interval_expr  */
 #line 126 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(ALSO, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1728 "gensrc/parser/dsl.tab.c"
+#line 1734 "gensrc/parser/dsl.tab.c"
     break;
 
   case 24: /* interval_expr: interval_expr BEFORE interval_expr  */
 #line 127 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(BEFORE, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1734 "gensrc/parser/dsl.tab.c"
+#line 1740 "gensrc/parser/dsl.tab.c"
     break;
 
   case 25: /* interval_expr: interval_expr MEET interval_expr  */
 #line 128 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(MEET, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1740 "gensrc/parser/dsl.tab.c"
+#line 1746 "gensrc/parser/dsl.tab.c"
     break;
 
   case 26: /* interval_expr: interval_expr DURING interval_expr  */
 #line 129 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(DURING, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1746 "gensrc/parser/dsl.tab.c"
+#line 1752 "gensrc/parser/dsl.tab.c"
     break;
 
   case 27: /* interval_expr: interval_expr START interval_expr  */
 #line 130 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(START, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1752 "gensrc/parser/dsl.tab.c"
+#line 1758 "gensrc/parser/dsl.tab.c"
     break;
 
   case 28: /* interval_expr: interval_expr FINISH interval_expr  */
 #line 131 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(FINISH, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1758 "gensrc/parser/dsl.tab.c"
+#line 1764 "gensrc/parser/dsl.tab.c"
     break;
 
   case 29: /* interval_expr: interval_expr OVERLAP interval_expr  */
 #line 132 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(OVERLAP, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1764 "gensrc/parser/dsl.tab.c"
+#line 1770 "gensrc/parser/dsl.tab.c"
     break;
 
   case 30: /* interval_expr: interval_expr SLICE interval_expr  */
 #line 133 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(SLICE, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1770 "gensrc/parser/dsl.tab.c"
+#line 1776 "gensrc/parser/dsl.tab.c"
     break;
 
   case 31: /* interval_expr: interval_expr COINCIDE interval_expr  */
 #line 134 "src/dsl.y"
                                                 { (yyval.node) = new_binary_interval_expr(COINCIDE, false, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1776 "gensrc/parser/dsl.tab.c"
+#line 1782 "gensrc/parser/dsl.tab.c"
     break;
 
   case 32: /* interval_expr: interval_expr UNLESS AFTER interval_expr  */
 #line 135 "src/dsl.y"
                                                      { (yyval.node) = new_binary_interval_expr(AFTER, true, (yyvsp[-3].node), (yyvsp[0].node)); }
-#line 1782 "gensrc/parser/dsl.tab.c"
+#line 1788 "gensrc/parser/dsl.tab.c"
     break;
 
   case 33: /* interval_expr: interval_expr UNLESS FOLLOW interval_expr  */
 #line 136 "src/dsl.y"
                                                      { (yyval.node) = new_binary_interval_expr(FOLLOW, true, (yyvsp[-3].node), (yyvsp[0].node));}
-#line 1788 "gensrc/parser/dsl.tab.c"
+#line 1794 "gensrc/parser/dsl.tab.c"
     break;
 
   case 34: /* interval_expr: interval_expr UNLESS CONTAIN interval_expr  */
 #line 137 "src/dsl.y"
                                                      { (yyval.node) = new_binary_interval_expr(CONTAIN, true, (yyvsp[-3].node), (yyvsp[0].node));}
-#line 1794 "gensrc/parser/dsl.tab.c"
+#line 1800 "gensrc/parser/dsl.tab.c"
     break;
 
   case 35: /* interval_expr: LPAREN interval_expr RPAREN  */
 #line 138 "src/dsl.y"
                                                 { (yyval.node) = (yyvsp[-1].node); }
-#line 1800 "gensrc/parser/dsl.tab.c"
+#line 1806 "gensrc/parser/dsl.tab.c"
     break;
 
   case 36: /* expr: INTLITERAL  */
 #line 142 "src/dsl.y"
                                 { (yyval.node) = new_int_literal((yyvsp[0].int_value), &(yylsp[0])); }
-#line 1806 "gensrc/parser/dsl.tab.c"
+#line 1812 "gensrc/parser/dsl.tab.c"
     break;
 
   case 37: /* expr: FLOATLITERAL  */
 #line 143 "src/dsl.y"
                                 { (yyval.node) = new_float_literal((yyvsp[0].float_value), &(yylsp[0])); }
-#line 1812 "gensrc/parser/dsl.tab.c"
+#line 1818 "gensrc/parser/dsl.tab.c"
     break;
 
   case 38: /* expr: STRINGLITERAL  */
 #line 144 "src/dsl.y"
                                 { (yyval.node) = new_string_literal((yyvsp[0].string_value), &(yylsp[0])); }
-#line 1818 "gensrc/parser/dsl.tab.c"
+#line 1824 "gensrc/parser/dsl.tab.c"
     break;
 
   case 39: /* expr: TRUE  */
 #line 145 "src/dsl.y"
                                 { (yyval.node) = new_boolean_literal(true, &(yylsp[0])); }
-#line 1824 "gensrc/parser/dsl.tab.c"
+#line 1830 "gensrc/parser/dsl.tab.c"
     break;
 
   case 40: /* expr: FALSE  */
 #line 146 "src/dsl.y"
                                 { (yyval.node) = new_boolean_literal(false, &(yylsp[0])); }
-#line 1830 "gensrc/parser/dsl.tab.c"
+#line 1836 "gensrc/parser/dsl.tab.c"
     break;
 
   case 41: /* expr: MINUS expr  */
 #line 147 "src/dsl.y"
                                   { (yyval.node) = new_unary_expr(UMINUS, (yyvsp[0].node), &(yylsp[-1])); }
-#line 1836 "gensrc/parser/dsl.tab.c"
+#line 1842 "gensrc/parser/dsl.tab.c"
     break;
 
   case 42: /* expr: BANG expr  */
 #line 148 "src/dsl.y"
                                 { (yyval.node) = new_unary_expr(BANG, (yyvsp[0].node), &(yylsp[-1])); }
-#line 1842 "gensrc/parser/dsl.tab.c"
+#line 1848 "gensrc/parser/dsl.tab.c"
     break;
 
   case 43: /* expr: expr MUL expr  */
 #line 149 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(MUL, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1848 "gensrc/parser/dsl.tab.c"
+#line 1854 "gensrc/parser/dsl.tab.c"
     break;
 
   case 44: /* expr: expr DIV expr  */
 #line 150 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(DIV, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1854 "gensrc/parser/dsl.tab.c"
+#line 1860 "gensrc/parser/dsl.tab.c"
     break;
 
   case 45: /* expr: expr MOD expr  */
 #line 151 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(MOD, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1860 "gensrc/parser/dsl.tab.c"
+#line 1866 "gensrc/parser/dsl.tab.c"
     break;
 
   case 46: /* expr: expr PLUS expr  */
 #line 152 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(PLUS, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1866 "gensrc/parser/dsl.tab.c"
+#line 1872 "gensrc/parser/dsl.tab.c"
     break;
 
   case 47: /* expr: expr MINUS expr  */
 #line 153 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(MINUS, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1872 "gensrc/parser/dsl.tab.c"
+#line 1878 "gensrc/parser/dsl.tab.c"
     break;
 
   case 48: /* expr: expr LT expr  */
 #line 154 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(LT, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1878 "gensrc/parser/dsl.tab.c"
+#line 1884 "gensrc/parser/dsl.tab.c"
     break;
 
   case 49: /* expr: expr GT expr  */
 #line 155 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(GT, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1884 "gensrc/parser/dsl.tab.c"
+#line 1890 "gensrc/parser/dsl.tab.c"
     break;
 
   case 50: /* expr: expr GE expr  */
 #line 156 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(GE, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1890 "gensrc/parser/dsl.tab.c"
+#line 1896 "gensrc/parser/dsl.tab.c"
     break;
 
   case 51: /* expr: expr LE expr  */
 #line 157 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(LE, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1896 "gensrc/parser/dsl.tab.c"
+#line 1902 "gensrc/parser/dsl.tab.c"
     break;
 
   case 52: /* expr: expr NE expr  */
 #line 158 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(NE, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1902 "gensrc/parser/dsl.tab.c"
+#line 1908 "gensrc/parser/dsl.tab.c"
     break;
 
   case 53: /* expr: expr EQ expr  */
 #line 159 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(EQ, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1908 "gensrc/parser/dsl.tab.c"
+#line 1914 "gensrc/parser/dsl.tab.c"
     break;
 
   case 54: /* expr: expr AND expr  */
 #line 160 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(AND, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1914 "gensrc/parser/dsl.tab.c"
+#line 1920 "gensrc/parser/dsl.tab.c"
     break;
 
   case 55: /* expr: expr OR expr  */
 #line 161 "src/dsl.y"
                                 { (yyval.node) = new_binary_expr(OR, (yyvsp[-2].node), (yyvsp[0].node)); }
-#line 1920 "gensrc/parser/dsl.tab.c"
+#line 1926 "gensrc/parser/dsl.tab.c"
     break;
 
   case 56: /* expr: IDENTIFIER FIELD IDENTIFIER  */
 #line 162 "src/dsl.y"
                                        { (yyval.node) = new_map_field((yyvsp[-2].string_value), (yyvsp[0].string_value), &(yylsp[-2]), &(yylsp[0])); }
-#line 1926 "gensrc/parser/dsl.tab.c"
+#line 1932 "gensrc/parser/dsl.tab.c"
     break;
 
   case 57: /* expr: IDENTIFIER FIELD BEGINTOKEN  */
 #line 163 "src/dsl.y"
                                        { (yyval.node) = new_time_field(BEGINTOKEN, (yyvsp[-2].string_value), &(yylsp[-2]), &(yylsp[0])); }
-#line 1932 "gensrc/parser/dsl.tab.c"
+#line 1938 "gensrc/parser/dsl.tab.c"
     break;
 
   case 58: /* expr: IDENTIFIER FIELD ENDTOKEN  */
 #line 164 "src/dsl.y"
                                        { (yyval.node) = new_time_field(ENDTOKEN, (yyvsp[-2].string_value), &(yylsp[-2]), &(yylsp[0])); }
-#line 1938 "gensrc/parser/dsl.tab.c"
+#line 1944 "gensrc/parser/dsl.tab.c"
     break;
 
   case 59: /* expr: LPAREN expr RPAREN  */
 #line 165 "src/dsl.y"
                                        { (yyval.node) = (yyvsp[-1].node); }
-#line 1944 "gensrc/parser/dsl.tab.c"
+#line 1950 "gensrc/parser/dsl.tab.c"
     break;
 
 
-#line 1948 "gensrc/parser/dsl.tab.c"
+#line 1954 "gensrc/parser/dsl.tab.c"
 
       default: break;
     }
@@ -2021,7 +2027,7 @@ yyerrlab:
           }
         yyerror (&yylloc, scanner, parser_dict, ast_root, yymsgp);
         if (yysyntax_error_status == YYENOMEM)
-          goto yyexhaustedlab;
+          YYNOMEM;
       }
     }
 
@@ -2058,6 +2064,7 @@ yyerrorlab:
      label yyerrorlab therefore never appears in user code.  */
   if (0)
     YYERROR;
+  ++yynerrs;
 
   /* Do not reclaim the symbols of the rule whose action triggered
      this YYERROR.  */
@@ -2121,7 +2128,7 @@ yyerrlab1:
 `-------------------------------------*/
 yyacceptlab:
   yyresult = 0;
-  goto yyreturn;
+  goto yyreturnlab;
 
 
 /*-----------------------------------.
@@ -2129,24 +2136,22 @@ yyacceptlab:
 `-----------------------------------*/
 yyabortlab:
   yyresult = 1;
-  goto yyreturn;
+  goto yyreturnlab;
 
 
-#if 1
-/*-------------------------------------------------.
-| yyexhaustedlab -- memory exhaustion comes here.  |
-`-------------------------------------------------*/
+/*-----------------------------------------------------------.
+| yyexhaustedlab -- YYNOMEM (memory exhaustion) comes here.  |
+`-----------------------------------------------------------*/
 yyexhaustedlab:
   yyerror (&yylloc, scanner, parser_dict, ast_root, YY_("memory exhausted"));
   yyresult = 2;
-  goto yyreturn;
-#endif
+  goto yyreturnlab;
 
 
-/*-------------------------------------------------------.
-| yyreturn -- parsing is finished, clean up and return.  |
-`-------------------------------------------------------*/
-yyreturn:
+/*----------------------------------------------------------.
+| yyreturnlab -- parsing is finished, clean up and return.  |
+`----------------------------------------------------------*/
+yyreturnlab:
   if (yychar != YYEMPTY)
     {
       /* Make sure we have latest lookahead translation.  See comments at

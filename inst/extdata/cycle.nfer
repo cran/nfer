@@ -1,0 +1,2 @@
+B :- x:A coincide y:A where x.v = y.v map { v -> x.v * 2 }
+A :- x:B before y:B where x.v != y.v map { v -> x.v }

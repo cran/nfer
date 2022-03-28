@@ -32,7 +32,7 @@
 #include "map.h"
 #include "stack.h"
 
-#define NFER_VERSION "1.5"
+#define NFER_VERSION "1.7"
 
 typedef bool (*temporal_test)(timestamp, timestamp, timestamp, timestamp);
 typedef timestamp (*start_end)(timestamp, timestamp);
@@ -79,30 +79,37 @@ typedef struct _phi_function {
 } phi_function;
 
 typedef struct _nfer_rule {
-    operator_code       op_code;
-    label               left_label;
-    label               right_label;
-    label               result_label;
-    bool                exclusion;
-    phi_function        *phi;
-    pool                new_intervals;
-    pool                left_cache;
-    pool                right_cache;
-    pool                produced;
-    rule_id             next;
-
-    bool                hidden;  // this is a hidden rule, caused by nesting in specifications
-    expression_input    *where_expression;
-    expression_input    *begin_expression;
-    expression_input    *end_expression;
-    data_map            map_expressions;
-    data_stack          expression_stack;
+    operator_code       op_code;           // lookup key for the temporal operator to use
+    label               left_label;        // label matching left side of the operator
+    label               right_label;       // label matching right side of the operator
+    label               result_label;      // label for produced intervals on the left side of the rule
+    bool                exclusion;         // set if this is an exclusive rule
+    phi_function        *phi;              // supports C functions for while/map which are currently unused
+    bool                hidden;            // set for a hidden rule, caused by nesting in specifications
+    expression_input    *where_expression; // where expression set by DSL
+    expression_input    *begin_expression; // begin expression set by DSL
+    expression_input    *end_expression;   // end expression set by DSL
+    data_map            map_expressions;   // map expressions where each key is set by the expression pointed to
+    // below here are operational data structures used by the monitoring algorithm
+    pool                new_intervals;     // used in apply_rule to temporarily store new intervals
+    pool_iterator       input_queue;       // used to keep track of where the rule is in the input between calls to apply_rule
+    pool                left_cache;        // used to store already seen intervals that match left_label
+    pool                right_cache;       // used to store already seen intervals that match right_label
+    pool                produced;          // used for minimality to store intervals produced by this rule
+    data_stack          expression_stack;  // used for evaluating all expressions for this rule to avoid constant init/destroy
 } nfer_rule;
+
+typedef struct _spec_analysis {
+    bool        has_cycle;
+    bool        has_exclusion;
+    bool        computes_ts; /* if it may compute new begin or end timestamps */
+} spec_analysis;
 
 typedef struct _nfer_specification {
     nfer_rule       *rules;
     unsigned int    size;
     unsigned int    space;
+    spec_analysis   analysis;
 } nfer_specification;
 
 void initialize_specification(nfer_specification *spec, unsigned int size);
@@ -114,8 +121,8 @@ bool is_subscribed(nfer_specification *, label);
 bool is_published(nfer_specification *, label);
 bool is_mapped(nfer_specification *, map_key);
 
-void add_interval_to_specification(nfer_specification *spec, interval *add, pool *out);
-
+void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool);
+void apply_specification(nfer_specification *spec, pool *input_pool, pool *output_pool);
 void run_nfer(nfer_specification *spec, pool *input_pool, pool *output_pool);
 
 void log_specification(nfer_specification *, dictionary *, dictionary *, dictionary *);

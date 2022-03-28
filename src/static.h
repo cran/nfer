@@ -1,11 +1,11 @@
 /*
- * generate.h
+ * static.h
  *
- *  Created on: May 15, 2017
+ *  Created on: Dec 10, 2021
  *      Author: skauffma
  *
- *    nfer - a system for inferring abstractions of event streams
- *   Copyright (C) 2017  Sean Kauffman
+ *   nfer - a system for inferring abstractions of event streams
+ *   Copyright (C) 2021  Sean Kauffman
  *
  *   This file is part of nfer.
  *   nfer is free software: you can redistribute it and/or modify
@@ -22,13 +22,25 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef INC_GENERATE_H_
-#define INC_GENERATE_H_
+#ifndef INC_STATIC_H_
+#define INC_STATIC_H_
 
 #include "ast.h"
 #include "nfer.h"
 
-operator_code get_operator_from_token(int);
-void generate_specification(ast_node *, nfer_specification *);
+typedef struct _rule_digraph_vertex {
+    ast_node      *rule;
+    unsigned int  incoming; /* number of incoming edges */
+    bool          removed;  /* used in the topological sort algorithm */
+} rule_digraph_vertex;
 
-#endif /* INC_GENERATE_H_ */
+typedef struct _rule_digraph_edge {
+    struct _rule_digraph_vertex    *from;
+    struct _rule_digraph_vertex    *to;
+    bool          removed;  /* used in the topological sort algorithm */
+} rule_digraph_edge;
+
+void initialize_analysis(spec_analysis *);
+bool do_static_analysis(ast_node **, spec_analysis *);
+
+#endif /* INC_STATIC_H_ */

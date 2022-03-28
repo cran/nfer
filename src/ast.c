@@ -381,9 +381,13 @@ ast_node *new_module_list(word_id id, ast_node *imports, ast_node *rules, ast_no
     if (tail) {
         p->location.last_line = tail->location.last_line;
         p->location.last_column = tail->location.last_column;
-    } else {
+    } else if (rules) {
+        // it may be that rules is null during, for example, testing or static analysis
         p->location.last_line = rules->location.last_line;
         p->location.last_column = rules->location.last_column;
+    } else {
+        p->location.last_line = loc->last_line;
+        p->location.last_column = loc->last_column;
     }
 
     /* copy information */
@@ -392,6 +396,9 @@ ast_node *new_module_list(word_id id, ast_node *imports, ast_node *rules, ast_no
     p->module_list.imports = imports;
     p->module_list.rules = rules;
     p->module_list.tail = tail;
+
+    /* initialize data structures for later analysis */
+    p->module_list.imported = false;
 
     return p;
 }
@@ -429,16 +436,20 @@ void free_node(ast_node *p) {
     /* free any children first */
     switch(p->type) {
     case type_unary_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free unary_expr %x\n", p);
         free_node(p->unary_expr.operand);
         break;
     case type_binary_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free binary_expr %x\n", p);
         free_node(p->binary_expr.left);
         free_node(p->binary_expr.right);
         break;
     case type_atomic_interval_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free atomic_interval_expr %x\n", p);
         destroy_map(&p->atomic_interval_expr.field_map);
         break;
     case type_binary_interval_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free binary_interval_expr %x\n", p);
         free_node(p->binary_interval_expr.left);
         free_node(p->binary_interval_expr.right);
         destroy_map(&p->binary_interval_expr.left_label_map);
@@ -447,14 +458,17 @@ void free_node(ast_node *p) {
         destroy_map(&p->binary_interval_expr.right_field_map);
         break;
     case type_map_expr_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free map_expr_list %x\n", p);
         free_node(p->map_expr_list.map_expr);
         free_node(p->map_expr_list.tail);
         break;
     case type_end_points:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free end_points %x\n", p);
         free_node(p->end_points.begin_expr);
         free_node(p->end_points.end_expr);
         break;
     case type_rule:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free rule %x\n", p);
         free_node(p->rule.interval_expr);
         free_node(p->rule.where_expr);
         free_node(p->rule.map_expr_list);
@@ -462,15 +476,18 @@ void free_node(ast_node *p) {
         destroy_map(&p->rule.label_map);
         break;
     case type_rule_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free rule_list %x\n", p);
         free_node(p->rule_list.head);
         free_node(p->rule_list.tail);
         break;
     case type_module_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free module_list %x\n", p);
         free_node(p->module_list.imports);
         free_node(p->module_list.rules);
         free_node(p->module_list.tail);
         break;
     case type_import_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free import_list %x\n", p);
         free_node(p->import_list.tail);
         break;
     default:

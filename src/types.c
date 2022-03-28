@@ -74,6 +74,12 @@ static bool nearly_equals(double a, double b) {
     }
 }
 
+/**
+ * Returns true if the two typed values are equal(ish), false if not.
+ * If the types are not equal, then the values are not considered
+ * equal, even if they might be considered comparable (int/real).
+ * For reals, equality uses the nearly_equals function.
+ */
 bool equals(typed_value *left, typed_value *right) {
     // if both are null pointers, then I suppose they're equal?
     if (left == NULL && right == NULL) {

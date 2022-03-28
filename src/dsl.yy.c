@@ -681,6 +681,7 @@ static const flex_int32_t yy_rule_can_match_eol[59] =
 #include "ast.h"
 #include "semantic.h"
 #include "generate.h"
+#include "static.h"
 #include "astutil.h"
 #include "log.h"
 #include "dsl.h"
@@ -983,10 +984,10 @@ YY_DECL
 		}
 
 	{
-#line 79 "src/dsl.l"
+#line 80 "src/dsl.l"
 
 
-#line 997 "gensrc/parser/dsl.yy.c"
+#line 998 "gensrc/parser/dsl.yy.c"
 
 	while ( /*CONSTCOND*/1 )		/* loops until end-of-file is reached */
 		{
@@ -1057,112 +1058,112 @@ do_action:	/* This label is used only to access EOF actions. */
 
 case 1:
 YY_RULE_SETUP
-#line 81 "src/dsl.l"
+#line 82 "src/dsl.l"
 return MODULE;
 	YY_BREAK
 case 2:
 YY_RULE_SETUP
-#line 82 "src/dsl.l"
+#line 83 "src/dsl.l"
 return IMPORT;
 	YY_BREAK
 case 3:
 YY_RULE_SETUP
-#line 83 "src/dsl.l"
+#line 84 "src/dsl.l"
 return WHERE;
 	YY_BREAK
 case 4:
 YY_RULE_SETUP
-#line 84 "src/dsl.l"
+#line 85 "src/dsl.l"
 return MAP;
 	YY_BREAK
 case 5:
 YY_RULE_SETUP
-#line 85 "src/dsl.l"
+#line 86 "src/dsl.l"
 return BEGINTOKEN;
 	YY_BREAK
 case 6:
 YY_RULE_SETUP
-#line 86 "src/dsl.l"
+#line 87 "src/dsl.l"
 return ENDTOKEN;
 	YY_BREAK
 case 7:
 YY_RULE_SETUP
-#line 87 "src/dsl.l"
+#line 88 "src/dsl.l"
 return TRUE;
 	YY_BREAK
 case 8:
 YY_RULE_SETUP
-#line 88 "src/dsl.l"
+#line 89 "src/dsl.l"
 return FALSE;
 	YY_BREAK
 case 9:
 YY_RULE_SETUP
-#line 89 "src/dsl.l"
+#line 90 "src/dsl.l"
 return UNLESS;
 	YY_BREAK
 case 10:
 YY_RULE_SETUP
-#line 91 "src/dsl.l"
+#line 92 "src/dsl.l"
 return ALSO;
 	YY_BREAK
 case 11:
 YY_RULE_SETUP
-#line 92 "src/dsl.l"
+#line 93 "src/dsl.l"
 return BEFORE;
 	YY_BREAK
 case 12:
 YY_RULE_SETUP
-#line 93 "src/dsl.l"
+#line 94 "src/dsl.l"
 return MEET;
 	YY_BREAK
 case 13:
 YY_RULE_SETUP
-#line 94 "src/dsl.l"
+#line 95 "src/dsl.l"
 return DURING;
 	YY_BREAK
 case 14:
 YY_RULE_SETUP
-#line 95 "src/dsl.l"
+#line 96 "src/dsl.l"
 return START;
 	YY_BREAK
 case 15:
 YY_RULE_SETUP
-#line 96 "src/dsl.l"
+#line 97 "src/dsl.l"
 return FINISH;
 	YY_BREAK
 case 16:
 YY_RULE_SETUP
-#line 97 "src/dsl.l"
+#line 98 "src/dsl.l"
 return OVERLAP;
 	YY_BREAK
 case 17:
 YY_RULE_SETUP
-#line 98 "src/dsl.l"
+#line 99 "src/dsl.l"
 return SLICE;
 	YY_BREAK
 case 18:
 YY_RULE_SETUP
-#line 99 "src/dsl.l"
+#line 100 "src/dsl.l"
 return COINCIDE;
 	YY_BREAK
 case 19:
 YY_RULE_SETUP
-#line 100 "src/dsl.l"
+#line 101 "src/dsl.l"
 return AFTER;
 	YY_BREAK
 case 20:
 YY_RULE_SETUP
-#line 101 "src/dsl.l"
+#line 102 "src/dsl.l"
 return FOLLOW;
 	YY_BREAK
 case 21:
 YY_RULE_SETUP
-#line 102 "src/dsl.l"
+#line 103 "src/dsl.l"
 return CONTAIN;
 	YY_BREAK
 case 22:
 YY_RULE_SETUP
-#line 104 "src/dsl.l"
+#line 105 "src/dsl.l"
 { 
                              yylval->string_value = add_word(parser_dict, yytext);
                              return IDENTIFIER;
@@ -1170,7 +1171,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 23:
 YY_RULE_SETUP
-#line 109 "src/dsl.l"
+#line 110 "src/dsl.l"
 {
                  yylval->int_value = 0;
                  return INTLITERAL;
@@ -1178,7 +1179,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 24:
 YY_RULE_SETUP
-#line 114 "src/dsl.l"
+#line 115 "src/dsl.l"
 {
                  yylval->int_value = string_to_i64(yytext, yyleng);
                  return INTLITERAL;
@@ -1186,7 +1187,7 @@ YY_RULE_SETUP
 	YY_BREAK
 case 25:
 YY_RULE_SETUP
-#line 119 "src/dsl.l"
+#line 120 "src/dsl.l"
 {
                       yylval->float_value = string_to_double(yytext, yyleng);
                       return FLOATLITERAL;
@@ -1195,7 +1196,7 @@ YY_RULE_SETUP
 case 26:
 /* rule 26 can match eol */
 YY_RULE_SETUP
-#line 124 "src/dsl.l"
+#line 125 "src/dsl.l"
 {
                       /* strip the quotes */
                       yytext[yyleng - 1] = 0;
@@ -1205,167 +1206,167 @@ YY_RULE_SETUP
 	YY_BREAK
 case 27:
 YY_RULE_SETUP
-#line 131 "src/dsl.l"
+#line 132 "src/dsl.l"
 return GE;
 	YY_BREAK
 case 28:
 YY_RULE_SETUP
-#line 132 "src/dsl.l"
+#line 133 "src/dsl.l"
 return LE;
 	YY_BREAK
 case 29:
 YY_RULE_SETUP
-#line 133 "src/dsl.l"
+#line 134 "src/dsl.l"
 return EQ;
 	YY_BREAK
 case 30:
 YY_RULE_SETUP
-#line 134 "src/dsl.l"
+#line 135 "src/dsl.l"
 return NE;
 	YY_BREAK
 case 31:
 YY_RULE_SETUP
-#line 135 "src/dsl.l"
+#line 136 "src/dsl.l"
 return GT;
 	YY_BREAK
 case 32:
 YY_RULE_SETUP
-#line 136 "src/dsl.l"
+#line 137 "src/dsl.l"
 return LT;
 	YY_BREAK
 case 33:
 YY_RULE_SETUP
-#line 137 "src/dsl.l"
+#line 138 "src/dsl.l"
 return PLUS;
 	YY_BREAK
 case 34:
 YY_RULE_SETUP
-#line 138 "src/dsl.l"
+#line 139 "src/dsl.l"
 return MINUS;
 	YY_BREAK
 case 35:
 YY_RULE_SETUP
-#line 139 "src/dsl.l"
+#line 140 "src/dsl.l"
 return MUL;
 	YY_BREAK
 case 36:
 YY_RULE_SETUP
-#line 140 "src/dsl.l"
+#line 141 "src/dsl.l"
 return DIV;
 	YY_BREAK
 case 37:
 YY_RULE_SETUP
-#line 141 "src/dsl.l"
+#line 142 "src/dsl.l"
 return MOD;
 	YY_BREAK
 case 38:
 YY_RULE_SETUP
-#line 142 "src/dsl.l"
+#line 143 "src/dsl.l"
 return BANG;
 	YY_BREAK
 case 39:
 YY_RULE_SETUP
-#line 143 "src/dsl.l"
+#line 144 "src/dsl.l"
 return AND;
 	YY_BREAK
 case 40:
 YY_RULE_SETUP
-#line 144 "src/dsl.l"
+#line 145 "src/dsl.l"
 return OR;
 	YY_BREAK
 case 41:
 YY_RULE_SETUP
-#line 146 "src/dsl.l"
+#line 147 "src/dsl.l"
 return LPAREN;
 	YY_BREAK
 case 42:
 YY_RULE_SETUP
-#line 147 "src/dsl.l"
+#line 148 "src/dsl.l"
 return RPAREN;
 	YY_BREAK
 case 43:
 YY_RULE_SETUP
-#line 148 "src/dsl.l"
+#line 149 "src/dsl.l"
 return LBRACE;
 	YY_BREAK
 case 44:
 YY_RULE_SETUP
-#line 149 "src/dsl.l"
+#line 150 "src/dsl.l"
 return RBRACE;
 	YY_BREAK
 case 45:
 YY_RULE_SETUP
-#line 150 "src/dsl.l"
+#line 151 "src/dsl.l"
 return LISTSEP;
 	YY_BREAK
 case 46:
 YY_RULE_SETUP
-#line 151 "src/dsl.l"
+#line 152 "src/dsl.l"
 return MAPSTO;
 	YY_BREAK
 case 47:
 YY_RULE_SETUP
-#line 152 "src/dsl.l"
+#line 153 "src/dsl.l"
 return LABELS;
 	YY_BREAK
 case 48:
 YY_RULE_SETUP
-#line 153 "src/dsl.l"
+#line 154 "src/dsl.l"
 return FIELD;
 	YY_BREAK
 case 49:
 YY_RULE_SETUP
-#line 154 "src/dsl.l"
+#line 155 "src/dsl.l"
 return YIELDS;
 	YY_BREAK
 case 50:
 YY_RULE_SETUP
-#line 155 "src/dsl.l"
+#line 156 "src/dsl.l"
 return EOL;
 	YY_BREAK
 case 51:
 /* rule 51 can match eol */
 YY_RULE_SETUP
-#line 157 "src/dsl.l"
+#line 158 "src/dsl.l"
 ;       /* ignore whitespace */
 	YY_BREAK
 case 52:
 YY_RULE_SETUP
-#line 158 "src/dsl.l"
+#line 159 "src/dsl.l"
 ;       /* ignore C-style comments */
 	YY_BREAK
 case 53:
 YY_RULE_SETUP
-#line 159 "src/dsl.l"
+#line 160 "src/dsl.l"
 BEGIN(BLOCK_COMMENT);
 	YY_BREAK
 case 54:
 YY_RULE_SETUP
-#line 160 "src/dsl.l"
+#line 161 "src/dsl.l"
 BEGIN(INITIAL);
 	YY_BREAK
 case 55:
 /* rule 55 can match eol */
 YY_RULE_SETUP
-#line 161 "src/dsl.l"
+#line 162 "src/dsl.l"
 ;
 	YY_BREAK
 case 56:
 YY_RULE_SETUP
-#line 162 "src/dsl.l"
+#line 163 "src/dsl.l"
 ;
 	YY_BREAK
 case 57:
 YY_RULE_SETUP
-#line 164 "src/dsl.l"
+#line 165 "src/dsl.l"
 yyerror(llocp, yyscanner, parser_dict, NULL, "Unknown character");
 	YY_BREAK
 case 58:
 YY_RULE_SETUP
-#line 165 "src/dsl.l"
+#line 166 "src/dsl.l"
 YY_FATAL_ERROR( "flex scanner jammed" );
 	YY_BREAK
-#line 1376 "gensrc/parser/dsl.yy.c"
+#line 1377 "gensrc/parser/dsl.yy.c"
 case YY_STATE_EOF(INITIAL):
 case YY_STATE_EOF(BLOCK_COMMENT):
 	yyterminate();
@@ -2516,7 +2517,7 @@ void yyfree (void * ptr , yyscan_t yyscanner)
 
 #define YYTABLES_NAME "yytables"
 
-#line 165 "src/dsl.l"
+#line 166 "src/dsl.l"
 
 
 static bool read_specification(const char *string, 
@@ -2542,6 +2543,7 @@ static bool read_specification(const char *string,
         specfile = fopen(string, "r");
         if (specfile == NULL) {
             // failed to open the file
+            yylex_destroy(scanner);
             return false;
         }
         yyset_in(specfile, scanner);
@@ -2561,6 +2563,9 @@ static bool read_specification(const char *string,
             log_ast(root, &parser_dict);
             log_msg("\n");
         }
+        filter_log_msg(LOG_LEVEL_DEBUG, "  Setting module imports\n");
+        set_imported(root);
+        
         filter_log_msg(LOG_LEVEL_DEBUG, "  Type checking\n");
         if (check_types(root) == error) {
             success = false;
@@ -2574,8 +2579,24 @@ static bool read_specification(const char *string,
             success = determine_fields(root, &parser_dict, &label_dict, key_dict);
         }
         if (success) {
+            // we put two steps in this block because there can be no failure from populating string lits
             filter_log_msg(LOG_LEVEL_DEBUG, "  Interning string literals\n");
             populate_string_literals(root, &parser_dict, val_dict);
+
+            filter_log_msg(LOG_LEVEL_DEBUG, "  Performing static analysis\n");
+            success = do_static_analysis(&root, &spec->analysis);
+        }
+        if (success) {
+            // here, we can use the static analysis results to, for example, throw out warnings or fail
+            if (spec->analysis.has_cycle && spec->analysis.has_exclusion) {
+                // this is not a good idea, but we won't completely forbid it since it is possible to use 
+                // both if one is careful about the structure of the rules - that is, the exclusive rules
+                // do not interact with any rules in the cycle
+                filter_log_msg(LOG_LEVEL_WARN, "You have exclusive rules and also a cycle in your rules!  Including both may lead to non-determinism!\n");
+                filter_log_msg(LOG_LEVEL_WARN, "For now you are allowed to proceed, but you do so at your own risk!\n");
+            }
+        }
+        if (success) {
             filter_log_msg(LOG_LEVEL_DEBUG, "  Generating rules\n");
             generate_specification(root, spec);
         }

@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.7.6.  */
+/* A Bison parser, made by GNU Bison 3.8.2.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -180,13 +180,15 @@ struct YYLTYPE
 
 
 
+
 int yyparse (void * scanner, dictionary *parser_dict, ast_node **ast_root);
+
 /* "%code provides" blocks.  */
 #line 51 "src/dsl.y"
 
 int yylex(YYSTYPE * yylval_param, YYLTYPE * llocp, void * yyscanner, dictionary *parser_dict);
 void yyerror(YYLTYPE * yylloc, void * scanner, dictionary *parser_dict, ast_node **ast_root, const char* message);
 
-#line 192 "gensrc/parser/dsl.tab.h"
+#line 194 "gensrc/parser/dsl.tab.h"
 
 #endif /* !YY_YY_GENSRC_PARSER_DSL_TAB_H_INCLUDED  */

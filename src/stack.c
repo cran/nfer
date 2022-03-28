@@ -26,7 +26,11 @@
 
 #include "stack.h"
 
-
+/**
+ * Set up a stack.
+ * Must be called before a stack is used.
+ * If dynamic memory is present, allocates some initial space.
+ */
 void initialize_stack(data_stack *stack) {
     stack->values = NULL;
 #ifndef NO_DYNAMIC_MEMORY
@@ -37,6 +41,13 @@ void initialize_stack(data_stack *stack) {
 #endif
     stack->tos = 0;
 }
+
+/**
+ * Destroy an allocated stack.
+ * Once initialize_stack has been called on a stack, destroy_stack 
+ * must be called at some point before termination.
+ * If dynamic memory is present this function is destructive.
+ */
 void destroy_stack(data_stack *stack) {
     stack->space = 0;
     stack->tos = 0;
@@ -47,6 +58,13 @@ void destroy_stack(data_stack *stack) {
     }
 #endif
 }
+
+/**
+ * Push a value (typed_value) onto the stack.
+ * If the stack does not have enough room and dynamic memory is supported, 
+ * it will be expanded.  If dynamic memory is not supported and there's
+ * not enough room, the value will not be pushed.
+ */
 void push(data_stack *stack, stack_value *entry) {
 #ifndef NO_DYNAMIC_MEMORY
     if (stack->tos >= stack->space) {
@@ -88,6 +106,14 @@ void push(data_stack *stack, stack_value *entry) {
         stack->tos++;
     }
 }
+
+/**
+ * Pop a (typed) value off the stack, copying it to the passed pointer.
+ * If the stack is empty, the entry will be set to null.
+ * This means the best way (right now) to tell if the stack
+ * is empty when popping is to set the value argument to a different
+ * data type, like Boolean.
+ */
 void pop(data_stack *stack, stack_value *entry) {
     if (stack->tos > 0) {
         stack->tos--;

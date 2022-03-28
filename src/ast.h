@@ -170,8 +170,8 @@ typedef struct {
     struct _ast_node *end_points;
 
     /* extra annotations to be set during semantic analysis */
-    data_map label_map;
-    word_id result_id;
+    data_map label_map;  // this is used for atomic rules to track what labels point to
+    word_id result_id;   // this is the id of the produced interval name
 } rule_node;
 
 /* specification */
@@ -185,6 +185,9 @@ typedef struct {
     struct _ast_node *imports;
     struct _ast_node *rules;
     struct _ast_node *tail;
+
+    /* extra annotations to be set during semantic analysis */
+    bool imported;
 } module_list_node;
 
 typedef struct {

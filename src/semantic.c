@@ -36,6 +36,72 @@
 
 #include "dsl.tab.h"
 
+/**
+ * Checks if a module name is in a list of imports.
+ * Returns true if it is found, false if not.
+ **/
+static bool in_imports(ast_node *imports, word_id name) {
+    if (!imports) {
+        return false;
+    }
+    if (imports->import_list.import == name) {
+        return true;
+    } else {
+        return in_imports(imports->import_list.tail, name);
+    }
+}
+
+/**
+ * Worker function for setting the imported flag on module.
+ * This recurses down the module list and checks to see if the module name is 
+ * in the import list.
+ **/
+static void set_imported_module(ast_node *node, bool first, ast_node *imports) {
+    // if we reach the end of the module list
+    if (!node) {
+        return;
+    }
+
+    // this function only does any work if there is a module list
+    if (node->type == type_module_list) {
+        if (first) {
+            node->module_list.imported = true;
+            set_imported_module(node->module_list.tail, false, node->module_list.imports);
+
+        } else {
+            if (in_imports(imports, node->module_list.id)) {
+                node->module_list.imported = true;
+            } else {
+                filter_log_msg(LOG_LEVEL_DEBUG, "Ignoring non-imported module %d\n", node->module_list.id);
+            }
+            set_imported_module(node->module_list.tail, false, imports);
+        }
+    }
+}
+
+/**
+ * Function to set the imported flag on modules.
+ * This flag is then used throughout analysis and generation to ignore modules
+ * that aren't imported.  This saves work and memory, and is important in 
+ * static analysis where we don't want to worry about unused modules.
+ **/
+void set_imported(ast_node *node) {
+    set_imported_module(node, true, NULL);
+}
+
+/**
+ * Check the types of an AST for sanity.
+ * This function walks an AST and checks that the types make sense.
+ * That means it checks all the expressions and ensures the types
+ * are compatible and tries to guess at what numeric expressions
+ * will produce.
+ * If there is a problem with types, say from a string being used
+ * in a Boolean expression, then it will call parse_error and return
+ * an error type.
+ * If there is no error, then it will return the type of the root
+ * node of the tree or null if the root isn't part of a checkable
+ * expression.
+ */
 ast_value_type check_types(ast_node *node) {
     ast_value_type value_type, child_type_1, child_type_2;
 
@@ -126,12 +192,12 @@ ast_value_type check_types(ast_node *node) {
         case NE:
             if (
                     (
-                            (child_type_1 == integer || child_type_1 == real || child_type_1 == duck) &&
-                            (child_type_2 == integer || child_type_2 == real || child_type_2 == duck)
+                        (child_type_1 == integer || child_type_1 == real || child_type_1 == duck) &&
+                        (child_type_2 == integer || child_type_2 == real || child_type_2 == duck)
                     ) ||
                     (
-                            (child_type_1 == string || child_type_1 == duck) &&
-                            (child_type_2 == string || child_type_2 == duck)
+                        (child_type_1 == string || child_type_1 == duck) &&
+                        (child_type_2 == string || child_type_2 == duck)
                     )
             ) {
                 value_type = boolean;
@@ -190,9 +256,16 @@ ast_value_type check_types(ast_node *node) {
         }
         break;
     case type_module_list:
-        if(check_types(node->module_list.rules) != error &&
-           check_types(node->module_list.tail) != error) {
-            value_type = null;
+        // skip modules that aren't imported
+        if (node->module_list.imported) {
+            if(check_types(node->module_list.rules) != error &&
+                check_types(node->module_list.tail) != error) {
+                value_type = null;
+            }
+        } else {
+            if(check_types(node->module_list.tail) != error) {
+                value_type = null;
+            }
         }
         break;
     default:
@@ -205,6 +278,14 @@ ast_value_type check_types(ast_node *node) {
     return value_type;
 }
 
+/**
+ * Generates a new, unique interval label for use in hidden rules.
+ * This is needed for hidden rules created due to rule nesting or exclusive rules.
+ * It tries to form the label using parts of the passed left/right words so as
+ * to help a user understand where the intervals came from.
+ * The function guarantees that the produced word does not appear in the passed 
+ * dictionary and returns the resulting word_id in that dictionary.
+ */
 static word_id new_interval_name(dictionary *dict, word_id partial_left, word_id partial_right) {
     unsigned int counter = 0;
     char buffer[MAX_WORD_LENGTH + 1];
@@ -219,7 +300,24 @@ static word_id new_interval_name(dictionary *dict, word_id partial_left, word_id
     return add_word(dict, buffer);
 }
 
-static bool determine_labels_per_rule(ast_node *node, dictionary *parser_dict, dictionary *label_dict, dictionary *name_dict,
+/**
+ * Walk a rule AST to determine the location of labels in the tree and check that they meet certain conditions.
+ * This function performs a number of label and interval name related tasks that must be done at the beginning 
+ * of semantic analysis (but can be after type checking).
+ * The main function is to set up data structures so that the code can find what is referred to when expressions
+ * later on refer to an interval name or label.  If there's a tree of nested rules, for example, each node 
+ * needs to know which side (right or left) contains that label so that expressions can be associated with the
+ * correct (generated, binary) rule and values needed by their children can be passed along.
+ * 
+ * This function, as mentioned, also does some semantic checking for a few random things because it is walking
+ * the rule trees already and is doing so early on.  This just avoids having more walks and code, but it does
+ * clutter things up a bit here.
+ * 
+ * This is a worker function called for each top-level rule by determine_labels.
+ * Returns true on success, false on failure.
+ */
+static bool determine_labels_per_rule(
+        ast_node *node, dictionary *parser_dict, dictionary *label_dict, dictionary *name_dict,
         data_map *label_map, data_map *parent_map, word_id *result_name, ast_node *bie_ast_node) {
     bool success = true;
     word_id label_dict_name_id, label_dict_label_id, name_dict_name_id;
@@ -269,6 +367,7 @@ static bool determine_labels_per_rule(ast_node *node, dictionary *parser_dict, d
         label_dict_name_id = add_word(label_dict, get_word(parser_dict, node->atomic_interval_expr.id));
         name_dict_name_id = add_word(name_dict, get_word(parser_dict, node->atomic_interval_expr.id));
         // set it on the atomic_interval_expr, which is only really used for completely atomic rules
+        // actually, it's now used in static analysis too, so don't remove this
         node->atomic_interval_expr.result_id = name_dict_name_id;
         // add the name id to the map, mapping to the binary_interval_expr_node, if it exists
         map_set(label_map, label_dict_name_id, &bie_value);
@@ -375,7 +474,13 @@ static bool determine_labels_per_rule(ast_node *node, dictionary *parser_dict, d
     return success;
 }
 
-// label, interval_name,
+/**
+ * External function to call determine_labels_per_rule on each rule in an AST.
+ * This is the function that is actually called from semantic analysis so as to avoid exposing all the 
+ * necessary parameters to the outside world.  This is a common pattern in the nfer AST.
+ * 
+ * Returns true on success, false on failure.
+ */
 bool determine_labels(ast_node *node, dictionary *parser_dict, dictionary *label_dict, dictionary *name_dict) {
     bool success = true;
     if (!node) {
@@ -387,7 +492,10 @@ bool determine_labels(ast_node *node, dictionary *parser_dict, dictionary *label
         success = success && determine_labels(node->rule_list.tail, parser_dict, label_dict, name_dict);
         break;
     case type_module_list:
-        success = success && determine_labels(node->module_list.rules, parser_dict, label_dict, name_dict);
+        // skip any modules that aren't imported
+        if (node->module_list.imported) {
+            success = success && determine_labels(node->module_list.rules, parser_dict, label_dict, name_dict);
+        }
         success = success && determine_labels(node->module_list.tail, parser_dict, label_dict, name_dict);
         break;
     default:
@@ -397,6 +505,16 @@ bool determine_labels(ast_node *node, dictionary *parser_dict, dictionary *label
     return success;
 }
 
+/**
+ * Generate a new, unique map key name for data maps created by the analysis code.
+ * This is needed because, in the mapping from nested rules to binary rules, sometimes
+ * data must be passed along from a lower level (nested) rule to its parent.  That means
+ * setting data, and so we need unique map keys to use for storing said data.
+ * This function tries to use part of a passed string from the original data key in 
+ * the field name to make it easier for a user to understand where it came from.
+ * Gurantees the returned name did not appear in the passed dictionary.
+ * Returns the word_id of the string in that dictionary.
+ */
 static word_id new_field_name(dictionary *dict, const char *partial) {
     unsigned int counter = 0;
     char buffer[MAX_WORD_LENGTH + 1];
@@ -571,6 +689,14 @@ bool set_field_mapping_per_rule(
     return success;
 }
 
+/**
+ * Takes an interval expression, where there is a time_field node that references either that BIE
+ * or one of its children.  The function looks for the BIE that is referenced and then creates
+ * mappings for the time field up the tree until the rule for the top level BIE can access it.
+ * After the first mapping the time field ceases to be a time field per se as it will be stored in
+ * map fields, so that must be reflected in the generated expression actions that reference it.
+ * There are also some incidental checks for referencing excluded intervals.
+ */
 #ifndef TEST
 static
 #endif
@@ -768,6 +894,12 @@ bool set_time_mapping_per_rule(
     return success;
 }
 
+/**
+ * Parent function to call the remap functions for either time or field mappings.
+ * This keeps some of the incidental AST walking from needing to be duplicated in
+ * those functions and keeps the argument list sane at this level.
+ * Returns true on success and false on failure.
+ */
 #ifndef TEST
 static
 #endif
@@ -794,14 +926,14 @@ bool remap_field_or_time_mappings(
         }
         break;
     case type_map_field:
-//        ast_node *interval_expr,
-//        dictionary *key_dict,
-//        word_id label,
-//        map_key key,
-//        map_key *result,
-//        side_enum *side,
-//        bool exclusion_ok,
-//        bool nested
+        //        ast_node *interval_expr,
+        //        dictionary *key_dict,
+        //        word_id label,
+        //        map_key key,
+        //        map_key *result,
+        //        side_enum *side,
+        //        bool exclusion_ok,
+        //        bool nested
         // skip this field if it is a subfield of a Boolean expression
         // this is to avoid remapping fields that really just shouldn't ever be remapped
         if (expr_node->map_field.is_non_boolean) {
@@ -817,15 +949,15 @@ bool remap_field_or_time_mappings(
         }
         break;
     case type_time_field:
-//        ast_node *interval_expr,
-//        dictionary *key_dict,
-//        word_id label,
-//        map_key *result,
-//        side_enum *side,
-//        bool *is_time,
-//        int time_field,
-//        bool exclusion_ok,
-//        bool nested
+        //        ast_node *interval_expr,
+        //        dictionary *key_dict,
+        //        word_id label,
+        //        map_key *result,
+        //        side_enum *side,
+        //        bool *is_time,
+        //        int time_field,
+        //        bool exclusion_ok,
+        //        bool nested
         // figure out 1) if it will still be a time field when it gets up to the top level
         //            2) if not, what the map field will be called where it is copied
         success = success && set_time_mapping_per_rule(
@@ -1251,7 +1383,10 @@ bool determine_fields(
         success = success && determine_fields(node->rule_list.tail, parser_dict, label_dict, key_dict);
         break;
     case type_module_list:
-        success = success && determine_fields(node->module_list.rules, parser_dict, label_dict, key_dict);
+        // skip any modules that aren't imported
+        if (node->module_list.imported) {
+            success = success && determine_fields(node->module_list.rules, parser_dict, label_dict, key_dict);
+        }
         success = success && determine_fields(node->module_list.tail, parser_dict, label_dict, key_dict);
         break;
     default:
@@ -1316,12 +1451,14 @@ void populate_string_literals(ast_node *node, dictionary *parser_dict, dictionar
         populate_string_literals(node->rule_list.tail, parser_dict, val_dict);
         break;
     case type_module_list:
-        populate_string_literals(node->module_list.imports, parser_dict, val_dict);
-        populate_string_literals(node->module_list.rules, parser_dict, val_dict);
+        // skip any modules that aren't imported
+        if (node->module_list.imported) {
+            populate_string_literals(node->module_list.rules, parser_dict, val_dict);
+        }
         populate_string_literals(node->module_list.tail, parser_dict, val_dict);
         break;
-    case type_import_list:
-        populate_string_literals(node->import_list.tail, parser_dict, val_dict);
+    default:
+        /* do nothing */
         break;
     }
 }

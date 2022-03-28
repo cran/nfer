@@ -1,1 +1,8 @@
-PKG_CFLAGS = -DRPACKAGE
+PKG_CFLAGS = -DRPACKAGE -D__USE_MINGW_ANSI_STDIO=1
+
+# the second define is to fix the following:
+# there are warnings from -Wformat on MinGW-W64 builds
+# these are due to issues with GCC's format checking on these platforms
+# for more information see these pages:
+# https://stackoverflow.com/questions/10678124/mingw-gcc-unknown-conversion-type-character-h-snprintf
+# https://github.com/dosbox-staging/dosbox-staging/issues/64

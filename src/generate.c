@@ -22,7 +22,7 @@
  *   along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-
+#include <assert.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -479,86 +479,87 @@ static nfer_rule * generate_each_rule(ast_node *node, nfer_specification *spec, 
 
     if (!node) {
         rule = NULL;
-    }
-    switch (node->type) {
-    case type_atomic_interval_expr:
-        // check to see if we have to generate a nested atomic rule
-        if (node->atomic_interval_expr.separate) {
-            // there's no nesting below this, so don't worry about that
-            rule = add_rule_to_specification(spec, result, node->atomic_interval_expr.result_id, ALSO_OPERATOR, WORD_NOT_FOUND, NULL);
-            // always hidden!
+    } else {
+        switch (node->type) {
+        case type_atomic_interval_expr:
+            // check to see if we have to generate a nested atomic rule
+            if (node->atomic_interval_expr.separate) {
+                // there's no nesting below this, so don't worry about that
+                rule = add_rule_to_specification(spec, result, node->atomic_interval_expr.result_id, ALSO_OPERATOR, WORD_NOT_FOUND, NULL);
+                // always hidden!
+                rule->hidden = true;
+                initialize_map(&rule->map_expressions);
+
+                if (where_node) {
+                    if (belongs_in_ie(node, where_node)) {
+                        size = 1 + get_eval_size(node, where_node);
+                        initialize_expression_input(&rule->where_expression, size);
+                        rule->where_expression[0].length = size;
+                        filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for AIE where clause, eval size is %d\n", size);
+                        generate_eval_from_expr(node, where_node, rule->where_expression, 1);
+                    }
+                }
+                get_map_iterator(&node->atomic_interval_expr.field_map, &mit);
+                while (has_next_map_key(&mit)) {
+                    key = next_map_key(&mit);
+                    map_get(&node->atomic_interval_expr.field_map, key, &value);
+
+                    expression.type = pointer_type;
+                    expression.value.pointer = generate_eval_from_map_field(node, &value, left_side);
+                    map_set(&rule->map_expressions, key, &expression);
+                }
+                generate_evals_from_time_maps(&rule->map_expressions, node->atomic_interval_expr.begin_map, node->atomic_interval_expr.end_map,
+                    WORD_NOT_FOUND, WORD_NOT_FOUND);
+            } else {
+                rule = NULL;
+            }
+            break;
+        case type_binary_interval_expr:
+            generate_each_rule(node->binary_interval_expr.left, spec, node->binary_interval_expr.left_name, where_node);
+            generate_each_rule(node->binary_interval_expr.right, spec, node->binary_interval_expr.right_name, where_node);
+
+            rule = add_rule_to_specification(spec, result, node->binary_interval_expr.left_name,
+                        get_operator_from_token(node->binary_interval_expr.interval_op),
+                        node->binary_interval_expr.right_name, NULL);
+            // default to hidden, but the top level rule will set this back to false
             rule->hidden = true;
             initialize_map(&rule->map_expressions);
 
             if (where_node) {
+                // verify that there is anything in the where expression that should occur in this rule
                 if (belongs_in_ie(node, where_node)) {
                     size = 1 + get_eval_size(node, where_node);
                     initialize_expression_input(&rule->where_expression, size);
                     rule->where_expression[0].length = size;
-                    filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for AIE where clause, eval size is %d\n", size);
+                    filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for BIE where clause, eval size is %d\n", size);
                     generate_eval_from_expr(node, where_node, rule->where_expression, 1);
                 }
             }
-            get_map_iterator(&node->atomic_interval_expr.field_map, &mit);
+            get_map_iterator(&node->binary_interval_expr.left_field_map, &mit);
             while (has_next_map_key(&mit)) {
                 key = next_map_key(&mit);
-                map_get(&node->atomic_interval_expr.field_map, key, &value);
+                map_get(&node->binary_interval_expr.left_field_map, key, &value);
 
                 expression.type = pointer_type;
                 expression.value.pointer = generate_eval_from_map_field(node, &value, left_side);
                 map_set(&rule->map_expressions, key, &expression);
             }
-            generate_evals_from_time_maps(&rule->map_expressions, node->atomic_interval_expr.begin_map, node->atomic_interval_expr.end_map,
-                WORD_NOT_FOUND, WORD_NOT_FOUND);
-        } else {
+            get_map_iterator(&node->binary_interval_expr.right_field_map, &mit);
+            while (has_next_map_key(&mit)) {
+                key = next_map_key(&mit);
+                map_get(&node->binary_interval_expr.right_field_map, key, &value);
+
+                expression.type = pointer_type;
+                expression.value.pointer = generate_eval_from_map_field(node, &value, right_side);
+                map_set(&rule->map_expressions, key, &expression);
+            }
+            generate_evals_from_time_maps(&rule->map_expressions, node->binary_interval_expr.left_begin_map, node->binary_interval_expr.left_end_map,
+                    node->binary_interval_expr.right_begin_map, node->binary_interval_expr.right_end_map);
+
+            break;
+        default:
             rule = NULL;
         }
-        break;
-    case type_binary_interval_expr:
-        generate_each_rule(node->binary_interval_expr.left, spec, node->binary_interval_expr.left_name, where_node);
-        generate_each_rule(node->binary_interval_expr.right, spec, node->binary_interval_expr.right_name, where_node);
-
-        rule = add_rule_to_specification(spec, result, node->binary_interval_expr.left_name,
-                    get_operator_from_token(node->binary_interval_expr.interval_op),
-                    node->binary_interval_expr.right_name, NULL);
-        // default to hidden, but the top level rule will set this back to false
-        rule->hidden = true;
-        initialize_map(&rule->map_expressions);
-
-        if (where_node) {
-            // verify that there is anything in the where expression that should occur in this rule
-            if (belongs_in_ie(node, where_node)) {
-                size = 1 + get_eval_size(node, where_node);
-                initialize_expression_input(&rule->where_expression, size);
-                rule->where_expression[0].length = size;
-                filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for BIE where clause, eval size is %d\n", size);
-                generate_eval_from_expr(node, where_node, rule->where_expression, 1);
-            }
-        }
-        get_map_iterator(&node->binary_interval_expr.left_field_map, &mit);
-        while (has_next_map_key(&mit)) {
-            key = next_map_key(&mit);
-            map_get(&node->binary_interval_expr.left_field_map, key, &value);
-
-            expression.type = pointer_type;
-            expression.value.pointer = generate_eval_from_map_field(node, &value, left_side);
-            map_set(&rule->map_expressions, key, &expression);
-        }
-        get_map_iterator(&node->binary_interval_expr.right_field_map, &mit);
-        while (has_next_map_key(&mit)) {
-            key = next_map_key(&mit);
-            map_get(&node->binary_interval_expr.right_field_map, key, &value);
-
-            expression.type = pointer_type;
-            expression.value.pointer = generate_eval_from_map_field(node, &value, right_side);
-            map_set(&rule->map_expressions, key, &expression);
-        }
-        generate_evals_from_time_maps(&rule->map_expressions, node->binary_interval_expr.left_begin_map, node->binary_interval_expr.left_end_map,
-                node->binary_interval_expr.right_begin_map, node->binary_interval_expr.right_end_map);
-
-        break;
-    default:
-        rule = NULL;
     }
     return rule;
 }
@@ -582,86 +583,76 @@ static void generate_eval_from_map_expr_list(ast_node *ie_node, ast_node *map_ex
     generate_eval_from_map_expr_list(ie_node, map_expr_list->map_expr_list.tail, map);
 }
 
-bool in_imports(ast_node *imports, word_id name) {
-    if (!imports) {
-        return false;
-    }
-    if (imports->import_list.import == name) {
-        return true;
-    } else {
-        return in_imports(imports->import_list.tail, name);
-    }
-}
-
-static void generate_rules(ast_node *node, nfer_specification *spec, bool first, ast_node *imports) {
+static void generate_rules(ast_node *node, nfer_specification *spec) {
     nfer_rule *rule;
     int size;
 
+    /* preconditions : not null and node should be a rule */
+    assert(node != NULL);
+    assert(spec != NULL);
+    assert(node->type == type_rule);
+
+    rule = generate_each_rule(node->rule.interval_expr, spec, node->rule.result_id, node->rule.where_expr);
+    if (!rule) {
+        // the rule is atomic, we need to generate it here
+        rule = add_rule_to_specification(spec, node->rule.result_id, node->rule.interval_expr->atomic_interval_expr.result_id,
+                    ALSO_OPERATOR, WORD_NOT_FOUND, NULL);
+
+        if (node->rule.where_expr) {
+            size = 1 + get_eval_size(node->rule.interval_expr, node->rule.where_expr);
+            initialize_expression_input(&rule->where_expression, size);
+            rule->where_expression[0].length = size;
+            filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for atomic rule where clause, eval size is %d\n", size);
+            generate_eval_from_expr(node->rule.interval_expr, node->rule.where_expr, rule->where_expression, 1);
+        }
+    }
+
+    // make sure this is not a hidden rule
+    rule->hidden = false;
+    if (node->rule.end_points) {
+        size = 1 + get_eval_size(node->rule.interval_expr, node->rule.end_points->end_points.begin_expr);
+        initialize_expression_input(&rule->begin_expression, size);
+        rule->begin_expression[0].length = size;
+        generate_eval_from_expr(node->rule.interval_expr, node->rule.end_points->end_points.begin_expr, rule->begin_expression, 1);
+
+        size = 1 + get_eval_size(node->rule.interval_expr, node->rule.end_points->end_points.end_expr);
+        initialize_expression_input(&rule->end_expression, size);
+        rule->end_expression[0].length = size;
+        generate_eval_from_expr(node->rule.interval_expr, node->rule.end_points->end_points.end_expr, rule->end_expression, 1);
+    }
+    if (node->rule.map_expr_list) {
+        generate_eval_from_map_expr_list(node->rule.interval_expr, node->rule.map_expr_list, &rule->map_expressions);
+    }
+}
+
+/**
+ * Generate the nfer_specification for a DSL AST after it has been processed
+ * by semantic analysis.
+ * This function recurses over the modules and rule lists and calls
+ * generate_rules for each rule in turn.
+ **/
+void generate_specification(ast_node *node, nfer_specification *spec) {
     if (!node) {
         return;
     }
     switch (node->type) {
-    case type_rule:
-        rule = generate_each_rule(node->rule.interval_expr, spec, node->rule.result_id, node->rule.where_expr);
-        if (!rule) {
-            // the rule is atomic, we need to generate it here
-            rule = add_rule_to_specification(spec, node->rule.result_id, node->rule.interval_expr->atomic_interval_expr.result_id,
-                        ALSO_OPERATOR, WORD_NOT_FOUND, NULL);
-
-            if (node->rule.where_expr) {
-                size = 1 + get_eval_size(node->rule.interval_expr, node->rule.where_expr);
-                initialize_expression_input(&rule->where_expression, size);
-                rule->where_expression[0].length = size;
-                filter_log_msg(LOG_LEVEL_DEBUG, "    Generating eval for atomic rule where clause, eval size is %d\n", size);
-                generate_eval_from_expr(node->rule.interval_expr, node->rule.where_expr, rule->where_expression, 1);
-            }
-        }
-
-        // make sure this is not a hidden rule
-        rule->hidden = false;
-        if (node->rule.end_points) {
-            size = 1 + get_eval_size(node->rule.interval_expr, node->rule.end_points->end_points.begin_expr);
-            initialize_expression_input(&rule->begin_expression, size);
-            rule->begin_expression[0].length = size;
-            generate_eval_from_expr(node->rule.interval_expr, node->rule.end_points->end_points.begin_expr, rule->begin_expression, 1);
-
-            size = 1 + get_eval_size(node->rule.interval_expr, node->rule.end_points->end_points.end_expr);
-            initialize_expression_input(&rule->end_expression, size);
-            rule->end_expression[0].length = size;
-            generate_eval_from_expr(node->rule.interval_expr, node->rule.end_points->end_points.end_expr, rule->end_expression, 1);
-        }
-        if (node->rule.map_expr_list) {
-            generate_eval_from_map_expr_list(node->rule.interval_expr, node->rule.map_expr_list, &rule->map_expressions);
-        }
-
-
-        break;
     case type_rule_list:
-        generate_rules(node->rule_list.head, spec, false, imports);
-        generate_rules(node->rule_list.tail, spec, false, imports);
+        // in the case of a rule_list, call generate_rules on the head (a rule node)
+        generate_rules(node->rule_list.head, spec);
+        // then recurse on the rest of the rule_list
+        generate_specification(node->rule_list.tail, spec);
         break;
     case type_module_list:
-
-        if (first) {
-            generate_rules(node->module_list.rules, spec, true, node->module_list.imports);
-            generate_rules(node->module_list.tail, spec, false, node->module_list.imports);
-        } else {
-            if (in_imports(imports, node->module_list.id)) {
-                generate_rules(node->module_list.rules, spec, false, node->module_list.imports);
-            } else {
-                filter_log_msg(LOG_LEVEL_DEBUG, "Ignoring non-imported module %d\n", node->module_list.id);
-            }
-            generate_rules(node->module_list.tail, spec, false, imports);
-        }
-
+        // only process rules from imported modules
+        if (node->module_list.imported) {
+            generate_specification(node->module_list.rules, spec);
+        } 
+        // recurse on the rest of the module list
+        generate_specification(node->module_list.tail, spec);
         break;
     default:
         return;
     }
-}
-
-void generate_specification(ast_node *node, nfer_specification *spec) {
-    generate_rules(node, spec, true, NULL);
 }
 
 

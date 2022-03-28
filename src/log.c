@@ -48,6 +48,12 @@ int  test_log_buffer_pos;
 
 void set_log_level(int level) {
     log_level = level;
+#ifndef RPACKAGE
+    // if the logging level is debug or higher, disable buffering on stderr
+    if (level >= LOG_LEVEL_DEBUG) {
+        setbuf(stderr, NULL);
+    }
+#endif
 }
 void set_log_file(const char *filename) {
     log_to_file = true;

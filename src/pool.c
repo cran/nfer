@@ -154,6 +154,19 @@ void add_interval(pool *p, interval *add) {
     }
 }
 
+/**
+ * Removes the most recently fetched interval from a pool using an iterator.
+ * This is the only method to remove intervals individually from pools.
+ * It only works using a pool iterator, and only using the regular iteration
+ * functions (not the queue functions).  To use it, pass the pool iterator 
+ * _after_ the interval to remove has been fetched using next_interval.
+ * This allows the calling code to test that the interval in question is
+ * the one to remove, and then to remove it (since next_interval updates
+ * the iterator).  After this is called, the next call to next_interval
+ * will still return the interval that came after the removed one so that
+ * the caller should still be able to keep all the other code constant in a 
+ * loop.
+ */
 void remove_from_pool(pool_iterator *remove) {
     interval_node *node;
 
@@ -179,6 +192,27 @@ void remove_from_pool(pool_iterator *remove) {
     remove->p->removed++;
 }
 
+/**
+ * Removes all the hidden intervals from a pool.
+ * The purpose of this function is to iterate over the passed pool,
+ * finding all the hidden intervals and removing them.  Subsequent
+ * iteration over the pool will not fetch the removed intervals.
+ */
+void remove_hidden(pool *p) {
+    pool_iterator pit;
+    interval *i;
+
+    // iterate over the pool
+    get_pool_iterator(p, &pit);
+    while (has_next_interval(&pit)) {
+        i = next_interval(&pit);
+        // it it's marked as hidden, remove it
+        if (i->hidden) {
+            remove_from_pool(&pit);
+        }
+    }
+}
+
 
 void get_pool_iterator(pool *p, pool_iterator *pit) {
     pit->p = p;
@@ -196,6 +230,79 @@ interval * next_interval(pool_iterator *pit) {
 bool has_next_interval(pool_iterator *pit) {
     return pit->current != END_OF_POOL;
 }
+
+/**
+ * Get an iterator that treats the pool as an empty FIFO.
+ * This function can be called on any pool, regardless of its emptiness.
+ * It will set the passed iterator either to the beginning of the pool
+ * or to the location where the next added interval will be placed in 
+ * the pool.  The purpose of the iterator is to walk through added 
+ * intervals in the order THEY WERE INSERTED instead of in their sort 
+ * order.  
+ * 
+ * The last parameter sets the starting location of the queue.
+ * If it is set to QUEUE_FROM_BEGINNING it will start from the very 
+ * beginning, causing iteration to include everything already present.
+ * If it is set to QUEUE_FROM_END it will only get intervals
+ * added AFTER get_pool_queue was called!
+ * 
+ * 
+ * These functions MUST NOT be mixed up with the above iterator
+ * functions for walking the pool in sort order!  The queue
+ * iterator returned by this function may refer to unallocated space, 
+ * but the normal iterator functions will misinterpret this and
+ * try to read it!
+ */
+void get_pool_queue(pool *p, pool_iterator *pqueue, bool end) {
+    pqueue->p = p;
+    if (end) {
+        pqueue->current = p->size;
+    } else {
+        pqueue->current = 0;
+    }
+    pqueue->last = END_OF_POOL;
+}
+/**
+ * Given a pool queue (iterator) that has intervals in the queue, 
+ * return the next interval (in insertion order).
+ * This function will get the next interval in the queue and 
+ * update the queue (iterator) to point to the next interval.
+ * 
+ * has_next_queue_interval must return true for the queue prior
+ * to calling next_queue_interval!
+ */
+interval * next_queue_interval(pool_iterator *pqueue) {
+    interval_node *node;
+
+    node = &pqueue->p->intervals[pqueue->current];
+    pqueue->current = pqueue->current + 1;
+    // careful here - this really should not be used but we'll
+    // keep it set to something that should work - essentially
+    // this iterator should still work to remove an interval but 
+    // it gets dicey and should not be relied on.
+    pqueue->last = node->prior;
+    
+    return &node->i;
+}
+/**
+ * Check to see if any intervals have been added to the passed
+ * queue (iterator) since it was allocated.  Returns true if
+ * so, false if not.
+ * 
+ * TODO: think about if this needs to skip removed intervals...
+ */
+bool has_next_queue_interval(pool_iterator *pqueue) {
+    return pqueue->current < pqueue->p->size;
+}
+
+/**
+ * Check if the current position of the first iterator is equal 
+ * or after the current positin of the second iterator.
+ */
+bool interval_added_after(pool_iterator *q1, pool_iterator *q2) {
+    return q1->current >= q2->current;
+}
+
 
 void copy_pool(pool *dest, pool *src, bool append, bool include_hidden) {
     pool_iterator pit;
@@ -271,6 +378,8 @@ static pool_index iterative_merge_sort(pool *p, pool_index start) {
         return start;
     }
 
+    filter_log_msg(LOG_LEVEL_DEBUG, "Performing merge sort on pool %x from start index %d\n", p, start);
+
     // start by splitting the pool into blocks of size 1
     // we will then merge these into blocks of 2, then 4, then 8, etc.
     // the trick is how to keep track of where the blocks start
@@ -341,6 +450,8 @@ void purge_pool(pool *p) {
     pool_index src_i, dest_i, extra_i;
     interval_node *src, *dest = NULL, *extra = NULL;
 
+    filter_log_msg(LOG_LEVEL_DEBUG, "Purging pool %x size %d with %d removed intervals\n", p, p->size, p->removed);
+
     // if nothing has been removed, don't bother to do any work
     if (p->removed == 0) {
         return;
@@ -350,16 +461,20 @@ void purge_pool(pool *p) {
     src_i = p->start;
     // dest just iterates the storage space
     dest_i = 0;
-    // Walk the linked list and move elements to whatever
-    // the next spot in the storage is.
-    // We have to be careful to destroy anything that
-    // is in the storage but isn't linked.
+    // Walk the linked list and move elements to whatever the next spot in the storage is.
+    // We have to be careful to destroy anything that is in the storage but isn't linked.
     while (src_i != END_OF_POOL) {
         // get the actual intervals
         src = &p->intervals[src_i];
         dest = &p->intervals[dest_i];
 
         // find the next hole in storage
+        // skip over the index if the following is true:
+        // 1) within the possible size AND
+        // 2) at least one of the following is true:
+        //    a) start or end of the pool
+        //    b) one of the linked list pointers points to something
+        // the check for the start/end are because of edge cases like a single element pool
         while (dest_i < p->size &&
                 (p->start == dest_i || p->end == dest_i ||
                 dest->next != END_OF_POOL || dest->prior != END_OF_POOL)) {
@@ -371,8 +486,10 @@ void purge_pool(pool *p) {
         if (dest_i >= p->size) {
             break;
         }
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Found hole at %d\n", dest_i);
 
         // find the first interval that occurs after the hole
+        // this iterates using the sort order which may not be accurate
         while (src_i < dest_i) {
             src_i = src->next;
             if (src_i != END_OF_POOL) {
@@ -383,12 +500,14 @@ void purge_pool(pool *p) {
         if (src_i == END_OF_POOL) {
             break;
         }
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Found interval to move at %d\n", src_i);
 
         // copy the interval in src over the interval in dest
         // the map was freed in remove_from_pool
         dest->i.name = src->i.name;
         dest->i.start = src->i.start;
         dest->i.end = src->i.end;
+        dest->i.hidden = src->i.hidden;
         // just copy the pointer for the map
         copy_map(&dest->i.map, &src->i.map, COPY_MAP_SHALLOW);
         dest->next = src->next;
@@ -420,15 +539,17 @@ void purge_pool(pool *p) {
     extra_i = dest_i;
     while (extra_i < p->size) {
         extra = &p->intervals[extra_i];
-        extra_i++;
+
+        // filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Looking for end - checking %d where start:%d, end:%d, next:%d, prior:%d\n", extra_i, p->start, p->end, extra->next, extra->prior);
 
         if (p->start == extra_i || p->end == extra_i ||
                 extra->next != END_OF_POOL || extra->prior != END_OF_POOL) {
             // increment dest_i so we find the real end of the pool
-            dest_i = extra_i;
+            dest_i = extra_i + 1;
         } else {
             break;
         }
+        extra_i++;
     }
     // fix the length
     p->size = dest_i;
