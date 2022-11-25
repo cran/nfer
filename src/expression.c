@@ -45,9 +45,12 @@ void initialize_expression_input(expression_input **input, unsigned int size) {
     }
 }
 void destroy_expression_input(expression_input **input) {
-    if (*input != NULL) {
-        free(*input);
-        *input = NULL;
+    // first check that the pointer itself is not null before dereferencing - probably not necessary but safer
+    if (input != NULL) {
+        if (*input != NULL) {
+            free(*input);
+            *input = NULL;
+        }
     }
 }
 #endif

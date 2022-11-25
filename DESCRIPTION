@@ -1,6 +1,6 @@
 Package: nfer
 Title: Event Stream Abstraction using Interval Logic
-Version: 1.1.0
+Version: 1.1.1
 Authors@R: 
     person("Sean", "Kauffman", , "seank@cs.aau.dk", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6341-3898"))
@@ -16,13 +16,13 @@ License: GPL (>= 3)
 Encoding: UTF-8
 URL: http://nfer.io/
 BugReports: https://bitbucket.org/seanmk/nfer/issues
-RoxygenNote: 7.1.2
+RoxygenNote: 7.2.2
 Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: yes
-Packaged: 2022-03-28 12:29:28 UTC; sb37fk
+Packaged: 2022-11-25 13:59:32 UTC; sb37fk
 Author: Sean Kauffman [aut, cre] (<https://orcid.org/0000-0001-6341-3898>)
 Maintainer: Sean Kauffman <seank@cs.aau.dk>
 Repository: CRAN
-Date/Publication: 2022-03-28 12:50:02 UTC
+Date/Publication: 2022-11-25 14:10:02 UTC

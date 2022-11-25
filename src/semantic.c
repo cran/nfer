@@ -358,8 +358,12 @@ static bool determine_labels_per_rule(
             if (label_dict_name_id != WORD_NOT_FOUND) {
                 map_get(label_map, label_dict_name_id, &check);
                 if (check.type != null_type) {
-                    parse_error(node, "Multiple intervals of the same type cannot appear in a rule without labels");
-                    success = false;
+                    // here we know the id appears more than once, but this on its own is not an error
+                    // we want to throw an error if something tries to refer to one of these duplicate
+                    // ids instead.  So, mark the id in the map as being present but illegal to
+                    // refer to.
+                    bie_value.type = SEMANTIC_ERROR_DUP_ID;
+                    // this is a little cheeky - but we just designate a label map type to be the error type
                 }
             }
         }
@@ -392,8 +396,12 @@ static bool determine_labels_per_rule(
             if (label_dict_label_id != WORD_NOT_FOUND) {
                 map_get(label_map, label_dict_label_id, &check);
                 if (check.type != null_type) {
-                    parse_error(node, "Duplicate labels in a single rule");
-                    success = false;
+                    // here we know the label appears more than once, but this on its own is not an error
+                    // we want to throw an error if something tries to refer to one of these duplicate
+                    // labels instead.  So, mark the label in the map as being present but illegal to
+                    // refer to.
+                    bie_value.type = SEMANTIC_ERROR_DUP_LABEL;
+                    // this is a little cheeky - but we just designate a label map type to be the error type
                 }
             }
             // then add the label
@@ -1147,24 +1155,32 @@ static bool determine_fields_per_ie(
                 success = false;
 
             } else {
-                // set the interval expression referenced by this map label for later ease of access
-                // the binary_interval_expr_node is the value stored in the label_map
-                expr_node->map_field.interval_expression = (ast_node *)label_value.value.pointer;
+                if (label_value.type == SEMANTIC_ERROR_DUP_ID) {
+                    parse_error(expr_node, "Duplicate interval identifier referred to in expression.  Add a unique label to fix this (label:id).\n");
+                    success = false;
+                } else if (label_value.type == SEMANTIC_ERROR_DUP_LABEL) {
+                    parse_error(expr_node, "Duplicate interval label referred to in expression.  Labels must be unique if referenced.\n");
+                    success = false;
+                } else {
+                    // set the interval expression referenced by this map label for later ease of access
+                    // the binary_interval_expr_node is the value stored in the label_map
+                    expr_node->map_field.interval_expression = (ast_node *)label_value.value.pointer;
 
-                // add the key to the key dictionary
-                expr_node->map_field.resulting_map_key = add_word(key_dict, get_word(parser_dict, expr_node->map_field.map_key));
+                    // add the key to the key dictionary
+                    expr_node->map_field.resulting_map_key = add_word(key_dict, get_word(parser_dict, expr_node->map_field.map_key));
 
-                // store the label_id too
-                expr_node->map_field.resulting_label_id = label_id;
+                    // store the label_id too
+                    expr_node->map_field.resulting_label_id = label_id;
 
-                // get the side of the label to default to
-                success = get_label_side_from_ie(&expr_node->map_field.side, expr_node->map_field.interval_expression, label_id);
-                
-                // We have to try to remap here as well because of the possibility that map expressions 
-                // refer to nested interval expressions.
-                if (!is_where_expr && !expr_references_exact_ie(ie_node, expr_node)) {
-                    filter_log_msg(LOG_LEVEL_DEBUG, "      Remapping map key from %u . %u\n", label_id, expr_node->map_field.resulting_map_key);
-                    success = success && remap_field_or_time_mappings(ie_node, expr_node, key_dict, is_where_expr);
+                    // get the side of the label to default to
+                    success = get_label_side_from_ie(&expr_node->map_field.side, expr_node->map_field.interval_expression, label_id);
+                    
+                    // We have to try to remap here as well because of the possibility that map expressions 
+                    // refer to nested interval expressions.
+                    if (!is_where_expr && !expr_references_exact_ie(ie_node, expr_node)) {
+                        filter_log_msg(LOG_LEVEL_DEBUG, "      Remapping map key from %u . %u\n", label_id, expr_node->map_field.resulting_map_key);
+                        success = success && remap_field_or_time_mappings(ie_node, expr_node, key_dict, is_where_expr);
+                    }
                 }
             }
         }
@@ -1184,20 +1200,28 @@ static bool determine_fields_per_ie(
                 success = false;
 
             } else {
-                // set the interval expression referenced by this time field label for later ease of access
-                // the binary_interval_expr_node is the value stored in the label_map
-                expr_node->time_field.interval_expression = (ast_node *)label_value.value.pointer;
+                if (label_value.type == SEMANTIC_ERROR_DUP_ID) {
+                    parse_error(expr_node, "Duplicate interval identifier referred to in expression.  Add a unique label to fix this (label:id).\n");
+                    success = false;
+                } else if (label_value.type == SEMANTIC_ERROR_DUP_LABEL) {
+                    parse_error(expr_node, "Duplicate interval label referred to in expression.  Labels must be unique if referenced.\n");
+                    success = false;
+                } else {
+                    // set the interval expression referenced by this time field label for later ease of access
+                    // the binary_interval_expr_node is the value stored in the label_map
+                    expr_node->time_field.interval_expression = (ast_node *)label_value.value.pointer;
 
-                expr_node->time_field.resulting_label_id = label_id;
+                    expr_node->time_field.resulting_label_id = label_id;
 
-                // get the side of the label to default to
-                success = get_label_side_from_ie(&expr_node->time_field.side, expr_node->time_field.interval_expression, label_id);
+                    // get the side of the label to default to
+                    success = get_label_side_from_ie(&expr_node->time_field.side, expr_node->time_field.interval_expression, label_id);
 
-                // We have to try to remap here as well because of the possibility that time expressions 
-                // refer to nested interval expressions.
-                if (!is_where_expr && !expr_references_exact_ie(ie_node, expr_node)) {
-                    filter_log_msg(LOG_LEVEL_DEBUG, "      Remapping time field from %u\n", label_id);
-                    success = success && remap_field_or_time_mappings(ie_node, expr_node, key_dict, is_where_expr);
+                    // We have to try to remap here as well because of the possibility that time expressions 
+                    // refer to nested interval expressions.
+                    if (!is_where_expr && !expr_references_exact_ie(ie_node, expr_node)) {
+                        filter_log_msg(LOG_LEVEL_DEBUG, "      Remapping time field from %u\n", label_id);
+                        success = success && remap_field_or_time_mappings(ie_node, expr_node, key_dict, is_where_expr);
+                    }
                 }
             }
         }

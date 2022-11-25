@@ -83,5 +83,6 @@ typedef struct {
 } typed_value;
 
 bool equals(typed_value *, typed_value *);
+int64_t compare_typed_values(typed_value *, typed_value *);
 
 #endif /* TYPES_H_ */

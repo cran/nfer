@@ -1,0 +1,1 @@
+A :- x:A coincide y:A where x.v = y.v & x.v < 5 map { v -> x.v + 1 }

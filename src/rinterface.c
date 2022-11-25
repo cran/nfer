@@ -38,6 +38,7 @@
 #include "log.h"
 #include "dsl.h"
 #include "strings.h"
+#include "analysis.h"
 
 #include "learn.h"
 
@@ -523,6 +524,17 @@ SEXP R_nfer(SEXP specfile, SEXP loglevel) {
 
     if (!loaded) {
         error("Unable to load specification!");
+    }
+
+    // if the spec loaded, set up the rule order and cycles 
+    // the monitoring algorithm won't work properly without this step as of nfer 1.8
+    if (!setup_rule_order(spec)) {
+        error("Error setting up rule order: aborting.");
+    }
+    // if the rule oder is set up, check that there aren't exclusive
+    // rules in a cycle
+    if (exclusive_cycle(spec)) {
+        error("Exclusive rules are not permitted in rule cycles!");
     }
 
     // unprotect handle

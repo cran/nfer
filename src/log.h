@@ -50,6 +50,11 @@ void set_output_file(const char *filename);
 void stop_logging(void);
 void stop_output(void);
 
+// we should consider redefining filter_log_msg to be a macro
+// #define filter_log_msg(level, ...) if (level <= log_level) { log_msg(__VA_ARGS__); }
+// but then how to ensure that log_level is exported?
+// perhaps we have to just continue to trust the compiler here...
+
 void filter_log_msg(int level, const char *message, ...);
 void log_msg(const char *message, ...);
 bool should_log(int level);

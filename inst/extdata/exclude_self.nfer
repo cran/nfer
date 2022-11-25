@@ -1,0 +1,12 @@
+B :- A before A map { x -> 0 }
+B :- A before A map { x -> 1 }
+C :- A before A
+D :- B meet B
+
+
+// should not match - there is a C
+E :- B unless contain C
+// also should not match - there are other Bs
+F :- B unless contain B
+// but this should match - there's only one D
+G :- D unless contain D

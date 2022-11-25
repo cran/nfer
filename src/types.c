@@ -81,48 +81,72 @@ static bool nearly_equals(double a, double b) {
  * For reals, equality uses the nearly_equals function.
  */
 bool equals(typed_value *left, typed_value *right) {
+    return (compare_typed_values(left, right) == 0);
+}
+/**
+ * Compare two typed values, returning a value depending on their order.
+ * Returns negative if left < right
+ * Returns 0 if left == right
+ * Returns positive if left > right
+ */
+int64_t compare_typed_values(typed_value *left, typed_value *right) {
     // if both are null pointers, then I suppose they're equal?
     if (left == NULL && right == NULL) {
-        return true;
+        return 0;
     }
 
     // if one is a null pointer, though, then they're definitely not equal
-    if (left == NULL || right == NULL) {
-        return false;
+    if (left == NULL) {
+        // left < right
+        return -1;
+    } else if (right == NULL) {
+        // left > right
+        return 1;
     }
 
     // if their types aren't equal, then they aren't equal
     if (left->type != right->type) {
-        return false;
+        // just subtract, which is fine since these are enums
+        return (int64_t)left->type - (int64_t)right->type;
     }
 
+    // types are equal
     switch(left->type) {
     case null_type:
         // both are null, so they are equal
-        return true;
+        return 0;
         break;
     case boolean_type:
-        // just compare the boolean values
-        return left->value.boolean == right->value.boolean;
+        // true > false -- subtraction is okay because these are just chars
+        return left->value.boolean - right->value.boolean;
         break;
     case integer_type:
         // just compare the integer values
-        return left->value.integer == right->value.integer;
+        return left->value.integer - right->value.integer;
         break;
     case real_type:
-        // have to use the nearly_equals function above...
-        return nearly_equals(left->value.real, right->value.real);
+        // we have to be careful here that we don't get into trouble with reals
+        if (nearly_equals(left->value.real, right->value.real)) {
+            return 0;
+        } else {
+            if (left->value.real > right->value.real) {
+                return 1;
+            } else {
+                return -1;
+            }
+        }
         break;
     case string_type:
-        // just compare the string values
-        return left->value.string == right->value.string;
+        // just compare the string values, which are unsigned ints
+        return (int)left->value.string - (int)right->value.string;
         break;
     case pointer_type:
-        // just compare the pointer values
-        return left->value.pointer == right->value.pointer;
+        // just compare the pointer values - this shouldn't be used, actually
+        return (((int64_t)left->value.pointer) - ((int64_t)right->value.pointer));
         break;
     }
 
     // provide a default case to make the compiler happy
-    return false;
+    return 0;
 }
+// leave a blank line at the end...

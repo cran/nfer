@@ -39,23 +39,27 @@ void initialize_map(data_map *map) {
 #endif
     map->start = MAP_MISSING_KEY;
 }
-void destroy_map(data_map *map) {
-#ifndef NO_DYNAMIC_MEMORY
-    if (map->space > 0) {
-        map->space = 0;
-    }
 
-    if (map->values != NULL) {
-        free(map->values);
-        map->values = NULL;
-    }
+void destroy_map(data_map *map) {
+    // check if it's null first
+    if (map != NULL) {
+#ifndef NO_DYNAMIC_MEMORY
+        if (map->space > 0) {
+            map->space = 0;
+        }
+
+        if (map->values != NULL) {
+            free(map->values);
+            map->values = NULL;
+        }
 #else
-    // just clear the map if there's no dynamic memory
-    if (map->values != NULL) {
-        clear_memory(map->values, map->space * sizeof(map_value_node));
-    }
+        // just clear the map if there's no dynamic memory
+        if (map->values != NULL) {
+            clear_memory(map->values, map->space * sizeof(map_value_node));
+        }
 #endif
-    map->start = MAP_MISSING_KEY;
+        map->start = MAP_MISSING_KEY;
+    }
 }
 void map_set(data_map *map, map_key key, map_value *value) {
     int new_space;
@@ -65,13 +69,13 @@ void map_set(data_map *map, map_key key, map_value *value) {
     // key is an index, so if the space is lower the storage needs to be expanded
     if (map->space <= key) {
         new_space = key + MAP_SIZE_INCREMENT;
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Growing map %p from %u to %u\n", map, map->space, new_space);
 
         if (map->values == NULL) {
             values_alloc = (map_value_node *)malloc(sizeof(map_value_node) * new_space);
         } else {
             values_alloc = (map_value_node *)realloc(map->values, sizeof(map_value_node) * new_space);
         }
-
         if (values_alloc != NULL) {
             map->values = values_alloc;
             clear_memory(map->values + map->space, (new_space - map->space) * sizeof(map_value_node));
@@ -138,6 +142,8 @@ void map_set(data_map *map, map_key key, map_value *value) {
                 map->start = key;
             }
         }
+    } else {
+        filter_log_msg(LOG_LEVEL_ERROR, "Could not allocate space for map %p\n");
     }
 }
 void map_get(data_map *map, map_key key, map_value *result) {
@@ -244,8 +250,15 @@ void copy_map(data_map *dest, data_map *src, bool deep) {
 }
 
 void get_map_iterator(data_map *map, map_iterator *mit) {
-    mit->map = map;
-    mit->current = map->start;
+    // safely handle null maps
+    if (map != NULL) {
+        mit->map = map;
+        mit->current = map->start;
+    } else {
+        // this ensures that has_next_map_key returns false
+        mit->map = NULL;
+        mit->current = MAP_MISSING_KEY;
+    }
 }
 map_key next_map_key(map_iterator *mit) {
     map_key k;
@@ -274,6 +287,61 @@ bool map_has_key(data_map *map, map_key key) {
         }
     }
     return false;
+}
+
+/**
+ * Compare two maps and return a signed value depending on their relation.
+ * Return negative if left < right
+ * Return 0 if left == right
+ * Return positive if left > right
+ */
+int64_t map_compare(data_map *left, data_map *right) {
+    // check every value
+    map_key left_key, right_key;
+    map_iterator left_mit, right_mit;
+    map_value left_value, right_value;
+    int64_t value_comparison;
+
+    // get one map iterator
+    // there's no order guarantee so we need to just iterate over one
+    // and check the keys on the other one
+    // if they are the same, then we have switch and do it the other way
+    // if any discrepencies arise, then it's non-zero
+    get_map_iterator(left, &left_mit);
+    while (has_next_map_key(&left_mit)) {
+        left_key = next_map_key(&left_mit);
+
+        // get the values - note that the keys are the same here
+        // if left_key isn't set on the right map, it will get a null value
+        map_get(left, left_key, &left_value);
+        map_get(right, left_key, &right_value);
+
+        // compare the two values and return the result if they aren't equal
+        value_comparison = compare_typed_values(&left_value, &right_value);
+
+        if (value_comparison != 0) {
+            return value_comparison;
+        }
+    }
+    get_map_iterator(right, &right_mit);
+    while (has_next_map_key(&right_mit)) {
+        right_key = next_map_key(&right_mit);
+
+        // get the values - note that the keys are the same here
+        // if right_key isn't set on the left map, it will get a null value
+        map_get(left, right_key, &left_value);
+        map_get(right, right_key, &right_value);
+
+        // compare the two values and return the result if they aren't equal
+        value_comparison = compare_typed_values(&left_value, &right_value);
+
+        if (value_comparison != 0) {
+            return value_comparison;
+        }
+    }
+
+    // if there are zero differences, the two are equal
+    return 0;
 }
 
 

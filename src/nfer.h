@@ -32,7 +32,7 @@
 #include "map.h"
 #include "stack.h"
 
-#define NFER_VERSION "1.7"
+#define NFER_VERSION "1.8"
 
 typedef bool (*temporal_test)(timestamp, timestamp, timestamp, timestamp);
 typedef timestamp (*start_end)(timestamp, timestamp);
@@ -97,23 +97,19 @@ typedef struct _nfer_rule {
     pool                right_cache;       // used to store already seen intervals that match right_label
     pool                produced;          // used for minimality to store intervals produced by this rule
     data_stack          expression_stack;  // used for evaluating all expressions for this rule to avoid constant init/destroy
+    unsigned int        cycle_size;        // holds the size of the _rest_ (rules with higher rule_ids) of the cycle in which this rule appears
 } nfer_rule;
-
-typedef struct _spec_analysis {
-    bool        has_cycle;
-    bool        has_exclusion;
-    bool        computes_ts; /* if it may compute new begin or end timestamps */
-} spec_analysis;
 
 typedef struct _nfer_specification {
     nfer_rule       *rules;
     unsigned int    size;
     unsigned int    space;
-    spec_analysis   analysis;
+    data_map        equivalent_labels;     // a map from remapped labels to the original labels they reference
 } nfer_specification;
 
 void initialize_specification(nfer_specification *spec, unsigned int size);
 void destroy_specification(nfer_specification *spec);
+void move_rule(nfer_rule *dest, nfer_rule *src);
 
 nfer_rule * add_rule_to_specification(nfer_specification *spec,
         label result_label_index, label left_label_index, operator_code op_code, label right_label_index, phi_function *phi);
@@ -121,8 +117,8 @@ bool is_subscribed(nfer_specification *, label);
 bool is_published(nfer_specification *, label);
 bool is_mapped(nfer_specification *, map_key);
 
-void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool);
-void apply_specification(nfer_specification *spec, pool *input_pool, pool *output_pool);
+void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool, data_map *equivalent_labels);
+void apply_rule_list(nfer_specification *spec, rule_id start_id, rule_id end_id, pool *input_pool, pool *output_pool);
 void run_nfer(nfer_specification *spec, pool *input_pool, pool *output_pool);
 
 void log_specification(nfer_specification *, dictionary *, dictionary *, dictionary *);

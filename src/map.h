@@ -65,7 +65,8 @@ void map_get(data_map *, map_key, map_value *);
 map_key map_find(data_map *, map_value *);
 void copy_map(data_map *, data_map *, bool);
 bool is_map_empty(data_map *);
-bool map_has_key(data_map*, map_key);
+bool map_has_key(data_map *, map_key);
+int64_t map_compare(data_map *, data_map *);
 
 void get_map_iterator(data_map *, map_iterator *);
 map_key next_map_key(map_iterator *);

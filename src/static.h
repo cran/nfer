@@ -25,22 +25,6 @@
 #ifndef INC_STATIC_H_
 #define INC_STATIC_H_
 
-#include "ast.h"
-#include "nfer.h"
-
-typedef struct _rule_digraph_vertex {
-    ast_node      *rule;
-    unsigned int  incoming; /* number of incoming edges */
-    bool          removed;  /* used in the topological sort algorithm */
-} rule_digraph_vertex;
-
-typedef struct _rule_digraph_edge {
-    struct _rule_digraph_vertex    *from;
-    struct _rule_digraph_vertex    *to;
-    bool          removed;  /* used in the topological sort algorithm */
-} rule_digraph_edge;
-
-void initialize_analysis(spec_analysis *);
-bool do_static_analysis(ast_node **, spec_analysis *);
+bool check_computes_ts(ast_node *);
 
 #endif /* INC_STATIC_H_ */

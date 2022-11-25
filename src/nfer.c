@@ -33,7 +33,6 @@
 #include "log.h"
 #include "expression.h"
 #include "memory.h"
-#include "static.h"
 
 #define PURGE_THRESHOLD 0.5
 
@@ -49,8 +48,8 @@ void initialize_specification(nfer_specification *spec, unsigned int rule_space)
     spec->space = 0;
     spec->rules = NULL;
     spec->size = 0;
-    // make sure the analysis result is zeroed
-    initialize_analysis(&spec->analysis);
+    // initialize label equivalence
+    initialize_map(&spec->equivalent_labels);
 
     if (rule_space > 0) {
         spec->rules = (nfer_rule *) malloc(sizeof(nfer_rule) * rule_space);
@@ -100,7 +99,59 @@ void destroy_specification(nfer_specification *spec) {
     }
     spec->size = 0;
     spec->space = 0;
-    // don't worry about the analysis result
+    // get rid of the equivalence map
+    destroy_map(&spec->equivalent_labels);
+}
+
+/**
+ * Move an nfer rule from one location to another.
+ * This function is destructive, meaning that the src rule is unusable but can
+ * be safely destroyed using the destroy_specification function. It also
+ * overwrites anything in the dest rule without checking first.  This means
+ * that the dest rule should NOT be initialized (via add, normally) prior
+ * to calling this function.
+ * 
+ * This function handles expressions from the DSL by shallow copying the 
+ * pointers and setting the src rule to NULL, which should be safe since
+ * expression destruction checks for it.
+ * The map expressions map is deep copied and the source is DESTROYED so
+ * that the destroy_specification function doesn't go in and destroy the
+ * still-referenced expression inputs.
+ **/
+void move_rule(nfer_rule *dest, nfer_rule *src) {
+    // just go through in order of the struct
+    // this part isn't destructive
+    dest->op_code = src->op_code;
+    dest->left_label = src->left_label;
+    dest->right_label = src->right_label;
+    dest->result_label = src->result_label;
+    dest->exclusion = src->exclusion;
+    // this is a pointer to a struct that is handled outside of nfer code
+    dest->phi = src->phi;
+    dest->hidden = src->hidden;
+    // below is destructive
+    dest->where_expression = src->where_expression;
+    src->where_expression = NULL;
+    dest->begin_expression = src->begin_expression;
+    src->begin_expression = NULL;
+    dest->end_expression = src->end_expression;
+    src->end_expression = NULL;
+    // be careful - src map needs destroyed so the expressions get left intact
+    initialize_map(&dest->map_expressions);
+    copy_map(&dest->map_expressions, &src->map_expressions, COPY_MAP_DEEP);
+    destroy_map(&src->map_expressions);
+    // below here we don't need to copy, just initialize
+    // set up the pools
+    initialize_pool(&dest->new_intervals);
+    // note we don't have to do anything with the pool iterator
+    initialize_pool(&dest->left_cache);
+    initialize_pool(&dest->right_cache);
+    initialize_pool(&dest->produced);
+    // this only gets called in dynamic mode, so the expression stack can just
+    // be initialized and it will be resized as needed
+    initialize_stack(&dest->expression_stack);
+    // clear the cycle root since we cannot know any longer if it's accurate
+    dest->cycle_size = 0;
 }
 #endif // no dynamic memory
 
@@ -135,7 +186,7 @@ static bool follow(timestamp s1, timestamp UNUSED(e1), timestamp UNUSED(s2), tim
     return s1 == e2;
 }
 static bool contain(timestamp s1, timestamp e1, timestamp s2, timestamp e2) {
-    return s2 >= s1 && e2 < e1;
+    return s2 >= s1 && e2 <= e1;
 }
 
 // start and end time functions
@@ -258,6 +309,9 @@ nfer_rule * add_rule_to_specification(
         rule->end_expression = NULL;
         rule->map_expressions = EMPTY_MAP;
         initialize_stack(&rule->expression_stack);
+
+        // clear the cycle root - this will be set by setup_rule_order
+        rule->cycle_size = 0;
 
         // then set the common fields
         rule->left_label = left_label_index;
@@ -572,7 +626,7 @@ void discard_older_events(pool *cache, timestamp cutoff) {
  * precondition: rule->input_queue must have been intialized to point at the
  * first interval in input_pool that has not yet been handled by this rule.
  **/
-void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) {
+void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool, data_map *equivalent_labels) {
     interval *rhs, *lhs, *new, *accepted;
     pool_iterator left_pit, right_pit, new_pit;
     bool exclude;
@@ -620,8 +674,8 @@ void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) 
     // now copy the intervals from the input into those queues
     while(has_next_queue_interval(input_queue)) {
         add = next_queue_interval(input_queue);
-        if (should_log(LOG_LEVEL_DEBUG)) {
-            log_msg("Adding interval to rule (%d,%" PRIu64 ",%" PRIu64 ",", add->name, add->start, add->end);
+        if (should_log(LOG_LEVEL_SUPERDEBUG)) {
+            log_msg("    Adding interval to rule (%d,%" PRIu64 ",%" PRIu64 ",", add->name, add->start, add->end);
             log_map(&add->map);
             log_msg(")\n");
         }
@@ -664,9 +718,17 @@ void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) 
 
                 // check the exclusion conditions just like any other operator
                 if (interval_match(rule, add, rhs)) {
-                    // if the conditions hold, exclude the match
-                    exclude = true;
-                    break;
+                    // if we get here, check for equality between the two intervals
+                    // we do not want an interval to exclude itself!
+                    if (!equal_intervals(add, rhs, equivalent_labels)) {
+                        // if the conditions hold, exclude the match
+                        exclude = true;
+
+                        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Exclusion matched: included lhs [%" PRIu64 ",%" PRIu64 "] excluded rhs [%" PRIu64 ",%" PRIu64 "]\n", add->start, add->end, rhs->start, rhs->end);
+
+                        // we don't need to continue iterating over the rhs since we know we'll exclude
+                        break;
+                    }
                 }
             }
             // the interval is not negated
@@ -843,7 +905,7 @@ void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) 
 }
 
 /**
- * Apply a specification one time to an input pool to produce an output pool.
+ * Apply a list of rules (a partial specification) one time to an input pool to produce an output pool.
  * Each rule, applied in order, is passed both the original input and the output from previous 
  * rule applications.
  * The input pool should contain the new intervals to add while the output pool may contain anything.
@@ -856,27 +918,33 @@ void apply_rule(nfer_rule *rule, pool_iterator *input_queue, pool *output_pool) 
  * added to the input.  The reason for this is that each rule gets the union of the input 
  * and the already produced intervals as its input.
  * 
- * Assumes the spec and input pool are non-empty.
+ * The rules are passed in the spec along with the start and ending indices of the rules to apply.
+ * This is done so that sub-specifications can be run.  The spec is passed instead of just the
+ * rule list so we have access to any metadata stored at the spec level.
+ * 
+ * Assumes the rule list and input pool are non-empty.
  * 
  */
-void apply_specification(nfer_specification *spec, pool *input_pool, pool *output_pool) {
+void apply_rule_list(nfer_specification *spec, rule_id start_id, rule_id end_id, pool *input_pool, pool *output_pool) {
     rule_id id;
     nfer_rule *rule;
     pool_iterator output_queue;
     interval *to_copy;
 
-
     // iterate over the rules, applying them to the input
-    for (id = 0; id < spec->size; id++) {
+    // note that end_id might equal start_id
+    for (id = start_id; id <= end_id; id++) {
         rule = &spec->rules[id];
 
         // set up the queue on output_pool
         // this will be used to copy intervals into input_pool
         get_pool_queue(output_pool, &output_queue, QUEUE_FROM_END);
 
-        filter_log_msg(LOG_LEVEL_DEBUG, "Applying %d of %d rule %d :- %d %s %d\n", id+1, spec->size, rule->result_label, rule->left_label, operators[rule->op_code].name, rule->right_label);
+        filter_log_msg(LOG_LEVEL_DEBUG, "  Applying %d of (%d - %d) rule %d :- %d %s %d\n", id, start_id, end_id, rule->result_label, rule->left_label, operators[rule->op_code].name, rule->right_label);
         // apply one rule, putting the output directly into the output pool
-        apply_rule(rule, &rule->input_queue, output_pool);
+        // pass through the equivalent labels map for making sure exclusive 
+        // rules don't allow intervals to exclude themselves
+        apply_rule(rule, &rule->input_queue, output_pool, &spec->equivalent_labels);
 
         // now set up the queue on input_pool
         // this will be used the next time the same rule is called
@@ -888,7 +956,7 @@ void apply_specification(nfer_specification *spec, pool *input_pool, pool *outpu
         // this is so the next rule application gets them sort of for free
         while (has_next_queue_interval(&output_queue)) {
             to_copy = next_queue_interval(&output_queue);
-            filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copying interval to input pool (%d,%" PRIu64 ",%" PRIu64 ")\n", to_copy->name, to_copy->start, to_copy->end);
+            filter_log_msg(LOG_LEVEL_SUPERDEBUG, "  -- Copying interval to input pool (%d,%" PRIu64 ",%" PRIu64 ")\n", to_copy->name, to_copy->start, to_copy->end);
             add_interval(input_pool, to_copy);
         }
     }
@@ -909,13 +977,12 @@ void apply_specification(nfer_specification *spec, pool *input_pool, pool *outpu
 void run_nfer(nfer_specification *spec, pool *input_pool, pool *output_pool) {
     pool_index previous_size;
     unsigned int loop_count;
-    rule_id id;
-    nfer_rule *rule;
+    rule_id id, starting_id, ending_id;
+    nfer_rule *rule, *starting_rule;
+    bool is_cycle;
 
     // store the starting size, which should be zero but we don't need to require that
     previous_size = output_pool->size;
-    // keep track of the number of times we have applied the rules
-    loop_count = 0;
 
     // initialize the input_queues for all the rules to point at the beginning of input_pool
     // apply_rule uses the input queue to iterate over the input pool and it needs to be 
@@ -927,16 +994,37 @@ void run_nfer(nfer_specification *spec, pool *input_pool, pool *output_pool) {
         get_pool_queue(input_pool, &rule->input_queue, QUEUE_FROM_BEGINNING);
     }
 
-    // always run at least once
-    // if there is not a cycle, stop there
-    // if there is a cycle, then keep going if new intervals were produced by the last application
-    while (loop_count == 0 || (spec->analysis.has_cycle && (output_pool->size - output_pool->removed) > previous_size)) {
-        previous_size = output_pool->size - output_pool->removed;
-        filter_log_msg(LOG_LEVEL_DEBUG, "Iteration %d: applying spec to input pool size %d with partial output size %d\n", loop_count, input_pool->size, output_pool->size - output_pool->removed);
-        apply_specification(spec, input_pool, output_pool);
-        loop_count++;
+    // As of nfer 1.8 we implement the extended semantics that permit exclusive rules
+    // in the same spec as cycles so long as the exclusive rules are not in cycles themselves.
+    // To implement this, we have an outer loop over the cycles in the specification.
+    // Each cycle is iterated over to a fixed point, unless it is a cycle of zero which means
+    // it isn't a cycle and can be run just one time.  
+    // Crucially, we also have to handle the special case of a cycle of just one rule
+    // we can just check the result/left/right labels directly to find this case.
+    for (starting_id = 0; starting_id < spec->size; starting_id = ending_id + 1) {
+        starting_rule = &spec->rules[starting_id];
+        // get the id of the last rule in the cycle (could be the same as starting_id)
+        ending_id = starting_rule->cycle_size + starting_id;
+        // is there a cycle?
+        is_cycle = ending_id > starting_id || 
+                   // look for self-loops
+                   (starting_rule->result_label == starting_rule->left_label || starting_rule->result_label == starting_rule->right_label);
+        // keep track of the number of times we have applied the rules
+        loop_count = 0;
+        
+        filter_log_msg(LOG_LEVEL_DEBUG, "Running nfer rule cycle %u - %u\n", starting_id, ending_id);
+
+        // always run at least once
+        // if there is not a cycle, stop there
+        // if there is a cycle, then keep going if new intervals were produced by the last application
+        while (loop_count == 0 || (is_cycle && (output_pool->size - output_pool->removed) > previous_size)) {
+            previous_size = output_pool->size - output_pool->removed;
+            filter_log_msg(LOG_LEVEL_DEBUG, "  Iteration %d: applying spec to input pool size %d with partial output size %d\n", loop_count, input_pool->size, output_pool->size - output_pool->removed);
+            apply_rule_list(spec, starting_id, ending_id, input_pool, output_pool);
+            loop_count++;
+        }
     }
-    filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Reached a fixed point in %d iteration(s) with %d new intervals produced\n", loop_count, (output_pool->size - output_pool->removed));
+
 
     // sort the result
     // make sure to account for removed intervals, since they may be trimmed by a selection function

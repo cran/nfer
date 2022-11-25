@@ -1,3 +1,8 @@
+# nfer 1.1.1
+
+ * Fix a tricky bug where intervals could exclude themselves.
+ * Fix a bug where single-rule cycles were not correctly iterated on.
+
 # nfer 1.1.0
 
  * This release includes some minor changes to the nfer language semantics and 

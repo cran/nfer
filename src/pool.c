@@ -55,24 +55,27 @@ void initialize_pool(pool *p) {
 void destroy_pool(pool *p) {
     unsigned int i;
 
-    // we have to destroy all the interval maps first
-    for (i = 0; i < p->size; i++) {
-        destroy_map(&p->intervals[i].i.map);
-    }
+    // if p is null, be safe and do nothing
+    if (p != NULL) {
+        // we have to destroy all the interval maps first
+        for (i = 0; i < p->size; i++) {
+            destroy_map(&p->intervals[i].i.map);
+        }
 
 #ifndef NO_DYNAMIC_MEMORY
-    if (p->intervals != NULL) {
-        free(p->intervals);
-    }
-    // destroying a static pool needs to not reset the interval storage
-    p->space = 0;
-    p->intervals = NULL;
+        if (p->intervals != NULL) {
+            free(p->intervals);
+        }
+        // destroying a static pool needs to not reset the interval storage
+        p->space = 0;
+        p->intervals = NULL;
 #endif
 
-    p->size = 0;
-    p->removed = 0;
-    p->start = END_OF_POOL;
-    p->end = END_OF_POOL;
+        p->size = 0;
+        p->removed = 0;
+        p->start = END_OF_POOL;
+        p->end = END_OF_POOL;
+    }
 }
 
 /**
@@ -101,6 +104,7 @@ interval * allocate_interval(pool *p) {
 
 #ifndef NO_DYNAMIC_MEMORY
         else if (p->intervals != NULL) {
+            filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Growing pool %p from %u to %u\n", p, p->space, p->space * 2);
             new_space = p->space * 2;
             interval_alloc = realloc(p->intervals, sizeof(interval_node) * new_space);
             if (interval_alloc != NULL) {
@@ -321,17 +325,45 @@ void copy_pool(pool *dest, pool *src, bool append, bool include_hidden) {
     }
 }
 
-int64_t compare_intervals(interval *i1, interval *i2) {
+/**
+ * Compare two intervals and return a number based on their relation.
+ * Returns negative if i1 < i2
+ * Returns 0 if i1 == i2
+ * Returns positive if i1 > i2
+ * 
+ * Takes a map as a parameter that can map labels to each other.
+ * This is needed due to rule generation that can split logical rules into
+ * multiple internal rules with generated labels.
+ * The equivalence only matters for equality testing.
+ * If the map pointer is NULL then it is ignored and labels must match exactly.
+ * 
+ * Note that only the i1 name will be checked for in the equivalence map!
+ */
+int64_t compare_intervals(interval *i1, interval *i2, data_map *equivalent_labels) {
+    map_value value;
+
     if (i1->end == i2->end) {
         if (i1->start == i2->start) {
+            if (i1->name == i2->name) {
+                return map_compare(&i1->map, &i2->map);
+            } else if (equivalent_labels != NULL) {
+                // if we have been passed a map of equivalent labels, check that
+                // WE ONLY LOOK UP THE i1 NAME!!!  This is due to how the function is used.
+                // Essentially, we know only the i1 name can be remapped so there's no reason to check.
+                // Still, this is probably not following the principle of least astonishment...
+                map_get(equivalent_labels, i1->name, &value);
+                if (value.type == string_type && ((label)value.value.string) == i2->name) {
+                    return map_compare(&i1->map, &i2->map);
+                }
+            }
             return i1->name - i2->name;
         }
         return i1->start - i2->start;
     }
     return i1->end - i2->end;
 }
-bool equal_intervals(interval *i1, interval *i2) {
-    return compare_intervals(i1, i2) == 0;
+bool equal_intervals(interval *i1, interval *i2, data_map *equivalent_labels) {
+    return compare_intervals(i1, i2, equivalent_labels) == 0;
 }
 
 
@@ -345,7 +377,7 @@ static pool_index merge(pool *p, pool_index a, pool_index b) {
     start = a;
 
     while (a != END_OF_POOL && b != END_OF_POOL && a != b) {
-        if (compare_intervals(&p->intervals[a].i, &p->intervals[b].i) < 0) {
+        if (compare_intervals(&p->intervals[a].i, &p->intervals[b].i, NULL) < 0) {
             *forward = a;
             a = p->intervals[a].next;
 

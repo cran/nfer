@@ -106,8 +106,8 @@ bool has_next_queue_interval(pool_iterator *);
 // This uses the insertion order of the pool, not the iteration order!
 bool interval_added_after(pool_iterator *, pool_iterator *);
 
-int64_t compare_intervals(interval *, interval *);
-bool equal_intervals(interval *, interval *);
+int64_t compare_intervals(interval *, interval *, data_map *);
+bool equal_intervals(interval *, interval *, data_map *);
 void log_interval(interval *);
 void output_interval(interval *, dictionary *, dictionary *, dictionary *, int);
 void output_pool(pool *, dictionary *, dictionary *, dictionary *, int);

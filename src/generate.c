@@ -474,7 +474,7 @@ static nfer_rule * generate_each_rule(ast_node *node, nfer_specification *spec, 
     nfer_rule *rule;
     map_iterator mit;
     map_key key;
-    map_value value, expression;
+    map_value value, expression, equivalence;
     int size;
 
     if (!node) {
@@ -488,6 +488,14 @@ static nfer_rule * generate_each_rule(ast_node *node, nfer_specification *spec, 
                 rule = add_rule_to_specification(spec, result, node->atomic_interval_expr.result_id, ALSO_OPERATOR, WORD_NOT_FOUND, NULL);
                 // always hidden!
                 rule->hidden = true;
+                // separate is set when we remap, meaning the two labels are equivalent
+                // capture this by setting a key in the equivalent_labels map
+                // this is later used to check interval equivalence
+                equivalence.type = string_type;
+                equivalence.value.string = node->atomic_interval_expr.result_id;
+                map_set(&spec->equivalent_labels, result, &equivalence);
+                filter_log_msg(LOG_LEVEL_DEBUG, "    Remapping %u to %u for seprate AIE rule\n", result, node->atomic_interval_expr.result_id);
+                // initialize the rule map expressions
                 initialize_map(&rule->map_expressions);
 
                 if (where_node) {

@@ -150,6 +150,13 @@ void add_learned_rules(learning *learn, dictionary *dict, nfer_specification *nf
             }
         }
     }
+
+    // note that we don't have to set up the rule order because we know that none
+    // of the rules have dependencies - the graph will have no edges.
+    // If we ever implemented a more advanced learner with multiple iterations then
+    // we would need to perform this step.
+
+    // the label equivalence can be skipped too since there are no remapped labels
 }
 
 void finish_learning(learning *learn) {

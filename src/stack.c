@@ -24,6 +24,7 @@
 
 #include <stdlib.h>
 
+#include "log.h"
 #include "stack.h"
 
 /**
@@ -49,14 +50,17 @@ void initialize_stack(data_stack *stack) {
  * If dynamic memory is present this function is destructive.
  */
 void destroy_stack(data_stack *stack) {
-    stack->space = 0;
-    stack->tos = 0;
+    // be safe around null pointers
+    if (stack != NULL) {
+        stack->space = 0;
+        stack->tos = 0;
 #ifndef NO_DYNAMIC_MEMORY
-    if (stack->values != NULL) {
-        free(stack->values);
-        stack->values = NULL;
-    }
+        if (stack->values != NULL) {
+            free(stack->values);
+            stack->values = NULL;
+        }
 #endif
+    }
 }
 
 /**
@@ -68,6 +72,7 @@ void destroy_stack(data_stack *stack) {
 void push(data_stack *stack, stack_value *entry) {
 #ifndef NO_DYNAMIC_MEMORY
     if (stack->tos >= stack->space) {
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Growing stack %p from %u to %u\n", stack, stack->space, stack->space * 2);
         stack->values = realloc(stack->values, sizeof(stack_value) * stack->space * 2);
 
         if (stack->values != NULL) {

@@ -43,6 +43,10 @@ typedef enum {
 #define NOT_WHERE_EXPR false
 #define WHERE_EXPR true
 
+// this is cheeky, but use the types in the label_map to indicate different errors
+#define SEMANTIC_ERROR_DUP_ID integer_type
+#define SEMANTIC_ERROR_DUP_LABEL real_type
+
 void set_imported(ast_node *);
 ast_value_type check_types(ast_node *);
 bool determine_labels(ast_node *, dictionary *, dictionary *, dictionary *);
