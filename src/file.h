@@ -29,9 +29,19 @@
 #include "pool.h"
 #include "dict.h"
 
+typedef enum {
+  PARSE_SUCCESS,
+  PARSE_LABEL_FILTERED,
+  PARSE_FILE_ERROR,
+  PARSE_UNEXPECTED_LINE,
+  PARSE_UNEXPECTED_NULL,
+  PARSE_INVALID_CHAR,
+  PARSE_TOO_MUCH_DATA,
+  PARSE_LINE_TOO_LONG
+} event_parse_result;
 
 #define MAX_MAP_PAIRS 32
-#define MAX_LINE_LENGTH 256
+#define MAX_LINE_LENGTH 4096
 
 #define FILTER_NAMES_AND_KEYS  1
 #define DO_NOT_FILTER 0
@@ -40,7 +50,7 @@
 #define IS_DELIMETER(_c_) ((_c_) == '|' || (_c_) == ',')
 #define IS_NEWLINE(_c_) ((_c_) == '\n')
 
-bool read_event_file(char *, pool *, dictionary *, dictionary *, dictionary *, bool);
-bool read_event_from_csv(pool *, char *, int, dictionary *, dictionary *, dictionary *, bool);
+event_parse_result read_event_file(char *, pool *, dictionary *, dictionary *, dictionary *, bool);
+event_parse_result read_event_from_csv(pool *, char *, int, dictionary *, dictionary *, dictionary *, bool);
 
 #endif /* FILE_H_ */

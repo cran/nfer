@@ -68,7 +68,7 @@ static word_id generate_interval_name(dictionary *dict) {
     char buffer[MAX_WORD_LENGTH + 1];
 
     do {
-        sprintf(buffer, "learned_%d", count++);
+        snprintf(buffer, MAX_WORD_LENGTH + 1, "learned_%d", count++);
     } while (find_word(dict, buffer) != WORD_NOT_FOUND);
 
     return add_word(dict, buffer);

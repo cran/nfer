@@ -26,5 +26,6 @@
 #define INC_STATIC_H_
 
 bool check_computes_ts(ast_node *);
+void fold_constants(ast_node *, typed_value *);
 
 #endif /* INC_STATIC_H_ */

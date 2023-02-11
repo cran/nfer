@@ -7,11 +7,11 @@ test_that("nfer correctly handles nested_ends", {
   expect_equal(row$start, 20)
   expect_equal(row$end, 20)
   row <- result[2,]
-  expect_equal(row$name, "D")
+  expect_equal(row$name, "E")
   expect_equal(row$start, 10)
   expect_equal(row$end, 30)
   row <- result[3,]
-  expect_equal(row$name, "E")
+  expect_equal(row$name, "D")
   expect_equal(row$start, 10)
   expect_equal(row$end, 30)
   row <- result[4,]
@@ -19,11 +19,11 @@ test_that("nfer correctly handles nested_ends", {
   expect_equal(row$start, 80)
   expect_equal(row$end, 80)
   row <- result[5,]
-  expect_equal(row$name, "D")
+  expect_equal(row$name, "E")
   expect_equal(row$start, 70)
   expect_equal(row$end, 90)
   row <- result[6,]
-  expect_equal(row$name, "E")
+  expect_equal(row$name, "D")
   expect_equal(row$start, 70)
   expect_equal(row$end, 90)
 })

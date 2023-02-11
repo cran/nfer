@@ -38,8 +38,13 @@
  * Pool needs to be initialized before passing to this function.
  * This function won't currently work without dynamic allocation.
  */
-bool read_event_file(char *filename, pool *p, dictionary *name_dict, dictionary *key_dict, dictionary *val_dict, bool filter) {
-    bool success = false;
+event_parse_result read_event_file(char *filename, 
+                                   pool *p, 
+                                   dictionary *name_dict, 
+                                   dictionary *key_dict, 
+                                   dictionary *val_dict, 
+                                   bool filter) {
+    event_parse_result result, parse_result;
     FILE* file;
     char line[MAX_LINE_LENGTH];
     int line_number = 0;
@@ -50,32 +55,35 @@ bool read_event_file(char *filename, pool *p, dictionary *name_dict, dictionary 
     // if we failed to open the file, log an error and return failure
     if (file == NULL) {
         filter_log_msg(LOG_LEVEL_ERROR, "Error reading event file\n");
-        return false;
+        return PARSE_FILE_ERROR;
     }
 
     // read as many line as you can
     while (fgets(line, MAX_LINE_LENGTH, file)) {
         line_number++;
 
-        // we're ignoring success or failure here, because we don't need to do any cleanup if it fails
-        read_event_from_csv(p, line, line_number, name_dict, key_dict, val_dict, filter);
+        // don't need to do any cleanup if it fails, but also don't ignore failure
+        parse_result = read_event_from_csv(p, line, line_number, name_dict, key_dict, val_dict, filter);
+        if (parse_result != PARSE_SUCCESS && parse_result != PARSE_LABEL_FILTERED) {
+            filter_log_msg(LOG_LEVEL_WARN, "Error reading from event file on line %d.\n", line_number);
+        }
     }
 
     if (feof(file)) {
         // hit the end of the file
         filter_log_msg(LOG_LEVEL_DEBUG, "EOF reached afer %d lines\n", line_number);
-        success = true;
+        result = PARSE_SUCCESS;
     } else {
         // found a line that does match this pattern
         // log a warning and move on
         filter_log_msg(LOG_LEVEL_WARN, "Line %d didn't match expected pattern, aborting.\n", line);
-        success = false;
+        result = PARSE_UNEXPECTED_LINE;
     }
 
     // make sure to close the file
     fclose(file);
 
-    return success;
+    return result;
 }
 #endif
 
@@ -142,7 +150,13 @@ typedef enum {
     TRAILING_WS
 } map_value_dfa_states;
 
-bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_dict, dictionary *key_dict, dictionary *val_dict, bool filter) {
+event_parse_result read_event_from_csv(pool *p, 
+                                       char *line, 
+                                       int line_number, 
+                                       dictionary *name_dict, 
+                                       dictionary *key_dict, 
+                                       dictionary *val_dict, 
+                                       bool filter) {
     char *name, *ts_str = line, *key_str, *val_str;
     timestamp ts;
 
@@ -179,7 +193,7 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
                 if (state != 4) {
                     filter_log_msg(LOG_LEVEL_WARN, "Unexpected NULL character encountered on Line %d column %d\n", line_number, i);
                 }
-                return false;
+                return PARSE_UNEXPECTED_NULL;
             }
         }
         filter_log_msg(LOG_LEVEL_SUPERDEBUG, "Line %d row %d state %d char %c last_non_ws %d mvtype %d\n", line_number, i, state, c, last_non_ws, mvtype);
@@ -209,7 +223,7 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
                 name_id = find_word(name_dict, name);
                 // don't add the interval if the name isn't found
                 if (name_id == WORD_NOT_FOUND) {
-                    return false;
+                    return PARSE_LABEL_FILTERED;
                 }
             } else {
                 // otherwise add the label to the dictionary
@@ -217,7 +231,7 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
             }
             // create an event without a map
             create_interval(p, name_id, ts, 0, NULL, NULL);
-            return true;
+            return PARSE_SUCCESS;
         } else if (state == TIMESTAMP && IS_DELIMETER(c)) {
             // there is a map
             state = MAPKEY_BEGIN;
@@ -339,7 +353,7 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
                     name_id = find_word(name_dict, name);
                     // don't add the interval if the name isn't found
                     if (name_id == WORD_NOT_FOUND) {
-                        return false;
+                        return PARSE_LABEL_FILTERED;
                     }
                 } else {
                     // otherwise add the label to the dictionary
@@ -347,7 +361,7 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
                 }
                 // create an event with a map
                 create_interval(p, name_id, ts, map_keys, keys, values);
-                return true;
+                return PARSE_SUCCESS;
             } else {
                 filter_log_msg(LOG_LEVEL_WARN, "Line %d had unequal numbers of map keys (%d) and values (%d)\n", line_number, map_keys, map_values);
             }
@@ -473,15 +487,15 @@ bool read_event_from_csv(pool *p, char *line, int line_number, dictionary *name_
 
             if (mverror) {
                 filter_log_msg(LOG_LEVEL_WARN, "Line %d had an invalid character %c in map value %d (0 based)\n", line_number, c, map_values);
-                return false;
+                return PARSE_INVALID_CHAR;
             }
         }
 
         if (map_keys == MAX_MAP_PAIRS || map_values == MAX_MAP_PAIRS) {
             filter_log_msg(LOG_LEVEL_WARN, "Line %d had too many map key/value pairs (max %d)\n", line_number, MAX_MAP_PAIRS);
-            return false;
+            return PARSE_TOO_MUCH_DATA;
         }
     }
-    return false;
+    return PARSE_LINE_TOO_LONG;
 }
 #endif

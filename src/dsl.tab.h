@@ -75,7 +75,7 @@ extern int yydebug;
 #include "log.h"
 #include "ast.h"
 #include "semantic.h"
-#line 46 "src/dsl.y"
+#line 46 "src/dsl/dsl.y"
 
     #define YYLTYPE YYLTYPE
     typedef location_type YYLTYPE;
@@ -103,44 +103,46 @@ extern int yydebug;
     MAPSTO = 267,                  /* MAPSTO  */
     LABELS = 268,                  /* LABELS  */
     MODULE = 269,                  /* MODULE  */
-    IMPORT = 270,                  /* IMPORT  */
-    WHERE = 271,                   /* WHERE  */
-    MAP = 272,                     /* MAP  */
-    BEGINTOKEN = 273,              /* BEGINTOKEN  */
-    ENDTOKEN = 274,                /* ENDTOKEN  */
-    FIELD = 275,                   /* FIELD  */
-    YIELDS = 276,                  /* YIELDS  */
-    TRUE = 277,                    /* TRUE  */
-    FALSE = 278,                   /* FALSE  */
-    EOL = 279,                     /* EOL  */
-    UNLESS = 280,                  /* UNLESS  */
-    ALSO = 281,                    /* ALSO  */
-    BEFORE = 282,                  /* BEFORE  */
-    MEET = 283,                    /* MEET  */
-    DURING = 284,                  /* DURING  */
-    START = 285,                   /* START  */
-    FINISH = 286,                  /* FINISH  */
-    OVERLAP = 287,                 /* OVERLAP  */
-    SLICE = 288,                   /* SLICE  */
-    COINCIDE = 289,                /* COINCIDE  */
-    AFTER = 290,                   /* AFTER  */
-    FOLLOW = 291,                  /* FOLLOW  */
-    CONTAIN = 292,                 /* CONTAIN  */
-    AND = 293,                     /* AND  */
-    OR = 294,                      /* OR  */
-    GE = 295,                      /* GE  */
-    LE = 296,                      /* LE  */
-    EQ = 297,                      /* EQ  */
-    NE = 298,                      /* NE  */
-    GT = 299,                      /* GT  */
-    LT = 300,                      /* LT  */
-    PLUS = 301,                    /* PLUS  */
-    MINUS = 302,                   /* MINUS  */
-    MUL = 303,                     /* MUL  */
-    DIV = 304,                     /* DIV  */
-    MOD = 305,                     /* MOD  */
-    UMINUS = 306,                  /* UMINUS  */
-    BANG = 307                     /* BANG  */
+    SILENT = 270,                  /* SILENT  */
+    LOUD = 271,                    /* LOUD  */
+    IMPORT = 272,                  /* IMPORT  */
+    WHERE = 273,                   /* WHERE  */
+    MAP = 274,                     /* MAP  */
+    BEGINTOKEN = 275,              /* BEGINTOKEN  */
+    ENDTOKEN = 276,                /* ENDTOKEN  */
+    FIELD = 277,                   /* FIELD  */
+    YIELDS = 278,                  /* YIELDS  */
+    TRUE = 279,                    /* TRUE  */
+    FALSE = 280,                   /* FALSE  */
+    EOL = 281,                     /* EOL  */
+    UNLESS = 282,                  /* UNLESS  */
+    ALSO = 283,                    /* ALSO  */
+    BEFORE = 284,                  /* BEFORE  */
+    MEET = 285,                    /* MEET  */
+    DURING = 286,                  /* DURING  */
+    START = 287,                   /* START  */
+    FINISH = 288,                  /* FINISH  */
+    OVERLAP = 289,                 /* OVERLAP  */
+    SLICE = 290,                   /* SLICE  */
+    COINCIDE = 291,                /* COINCIDE  */
+    AFTER = 292,                   /* AFTER  */
+    FOLLOW = 293,                  /* FOLLOW  */
+    CONTAIN = 294,                 /* CONTAIN  */
+    AND = 295,                     /* AND  */
+    OR = 296,                      /* OR  */
+    GE = 297,                      /* GE  */
+    LE = 298,                      /* LE  */
+    EQ = 299,                      /* EQ  */
+    NE = 300,                      /* NE  */
+    GT = 301,                      /* GT  */
+    LT = 302,                      /* LT  */
+    PLUS = 303,                    /* PLUS  */
+    MINUS = 304,                   /* MINUS  */
+    MUL = 305,                     /* MUL  */
+    DIV = 306,                     /* DIV  */
+    MOD = 307,                     /* MOD  */
+    UMINUS = 308,                  /* UMINUS  */
+    BANG = 309                     /* BANG  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -149,14 +151,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 39 "src/dsl.y"
+#line 39 "src/dsl/dsl.y"
 
     int64_t int_value;
     double float_value;
     word_id string_value;
     ast_node *node;
 
-#line 161 "gensrc/parser/dsl.tab.h"
+#line 163 "gensrc/parser/dsl.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -184,11 +186,11 @@ struct YYLTYPE
 int yyparse (void * scanner, dictionary *parser_dict, ast_node **ast_root);
 
 /* "%code provides" blocks.  */
-#line 51 "src/dsl.y"
+#line 51 "src/dsl/dsl.y"
 
 int yylex(YYSTYPE * yylval_param, YYLTYPE * llocp, void * yyscanner, dictionary *parser_dict);
 void yyerror(YYLTYPE * yylloc, void * scanner, dictionary *parser_dict, ast_node **ast_root, const char* message);
 
-#line 194 "gensrc/parser/dsl.tab.h"
+#line 196 "gensrc/parser/dsl.tab.h"
 
 #endif /* !YY_YY_GENSRC_PARSER_DSL_TAB_H_INCLUDED  */

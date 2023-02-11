@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "types.h"
 #include "dict.h"
 #include "map.h"
@@ -344,6 +345,7 @@ ast_node *new_rule(word_id id, ast_node *interval_expr, ast_node *where_expr, as
     /* initialize data structures for later analysis */
     p->rule.label_map = EMPTY_MAP;
     p->rule.result_id = WORD_NOT_FOUND;
+    p->rule.disabled = false;
 
     return p;
 }
@@ -399,6 +401,7 @@ ast_node *new_module_list(word_id id, ast_node *imports, ast_node *rules, ast_no
 
     /* initialize data structures for later analysis */
     p->module_list.imported = false;
+    p->module_list.silent = false;
 
     return p;
 }
@@ -408,20 +411,73 @@ ast_node *new_import_list(word_id import, ast_node *tail, location_type *loc) {
     /* allocate node */
     ALLOCATE_AST_NODE_TO_P
 
-    p->location.first_line = loc->first_line;
-    p->location.first_column = loc->first_column;
+    p->location.last_line = loc->last_line;
+    p->location.last_column = loc->last_column;
     if (tail) {
-        p->location.last_line = tail->location.last_line;
-        p->location.last_column = tail->location.last_column;
+        p->location.first_line = tail->location.first_line;
+        p->location.first_column = tail->location.first_column;
     } else {
-        p->location.last_line = loc->last_line;
-        p->location.last_column = loc->last_column;
+        p->location.first_line = loc->first_line;
+        p->location.first_column = loc->first_column;
     }
 
     /* copy information */
     p->type = type_import_list;
     p->import_list.import = import;
     p->import_list.tail = tail;
+
+    /* initialize data structures for later analysis */
+    p->import_list.silent = false;
+
+    return p;
+}
+/* this is to stick two import lists together.
+   head should never be null */
+ast_node * append_import_list(ast_node *head, ast_node *tail) {
+    ast_node *node, *last_node;
+    assert(node != NULL);
+
+    node = head;
+    last_node = NULL;
+    // walk the list to the end
+    while (node != NULL) {
+        last_node = node;
+        if (last_node->type == type_import_list) {
+            node = last_node->import_list.tail;
+        } else if (node->type == type_option_flag) {
+            node = last_node->option_flag.child;
+        }
+    }
+    assert(last_node != NULL);
+    if (last_node->type == type_import_list) {
+        last_node->import_list.tail = tail;
+    } else if (node->type == type_option_flag) {
+        last_node->option_flag.child = tail;
+    }
+
+    return head;
+}
+/* in practice this is currently only used to specify the silent flag for imports */
+ast_node *new_option_flag(int flag, ast_node *child, location_type *loc) {
+    ast_node *p;
+
+    /* allocate node */
+    ALLOCATE_AST_NODE_TO_P
+
+    p->location.first_line = loc->first_line;
+    p->location.first_column = loc->first_column;
+    if (child) {
+        p->location.last_line = child->location.last_line;
+        p->location.last_column = child->location.last_column;
+    } else {
+        p->location.last_line = loc->last_line;
+        p->location.last_column = loc->last_column;
+    }
+
+    /* copy information */
+    p->type = type_option_flag;
+    p->option_flag.flag = flag;
+    p->option_flag.child = child;
 
     return p;
 }
@@ -489,6 +545,10 @@ void free_node(ast_node *p) {
     case type_import_list:
         filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free import_list %x\n", p);
         free_node(p->import_list.tail);
+        break;
+    case type_option_flag:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free option_flag %x\n", p);
+        free_node(p->option_flag.child);
         break;
     default:
         break;

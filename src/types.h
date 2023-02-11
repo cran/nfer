@@ -27,6 +27,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 /* GCC and CLANG specific defines */
 #ifdef __GNUC__
@@ -45,13 +46,6 @@
 #   define NORETURN
 #endif
 
-
-// ifndef doesn't work for typedefs, so use a define if we know such a thing exists already
-#ifndef HAS_BOOL
-typedef char bool;
-#define true  1
-#define false 0
-#endif
 
 #ifndef NULL
 #define NULL ((void*)0)

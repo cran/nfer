@@ -222,20 +222,27 @@ void log_ast(ast_node *node, dictionary *parser_dict) {
     case type_module_list:
         log_msg("module %s {\n", get_word(parser_dict, node->module_list.id));
         if (node->module_list.imports) {
-            log_msg("import ");
             log_ast(node->module_list.imports, parser_dict);
-            log_msg(";\n");
         }
         log_ast(node->module_list.rules, parser_dict);
         log_msg("\n}\n");
         log_ast(node->module_list.tail, parser_dict);
         break;
     case type_import_list:
+        log_msg("import ");
         log_msg(get_word(parser_dict, node->import_list.import));
+        log_msg(";\n");
+
         if (node->import_list.tail) {
-            log_msg(", ");
             log_ast(node->import_list.tail, parser_dict);
         }
+        break;
+    case type_option_flag:
+        // wonky, but it gets the point across
+        if (node->option_flag.flag == SILENT) {
+            log_msg("silent ");
+        }
+        log_ast(node->option_flag.child, parser_dict);
         break;
     }
 }
@@ -243,7 +250,7 @@ void log_ast(ast_node *node, dictionary *parser_dict) {
 static word_id create_node(dictionary *dict, const char *type, ast_node *node) {
     char word[MAX_WORD_LENGTH + 1];
 
-    sprintf(word, "%s%p", type, (void *)node);
+    snprintf(word, MAX_WORD_LENGTH + 1, "%s%p", type, (void *)node);
     return add_word(dict, word);
 }
 
@@ -532,7 +539,7 @@ static word_id write_nodes(FILE *dotfile, ast_node *node, dictionary *parser_dic
 
         break;
     case type_module_list:
-        // this should really be an error
+        // this should be an error because the modules are written to separate files!
         break;
     case type_import_list:
         fprintf(dotfile, "<i%d> %s", node->import_list.import, get_word(parser_dict, node->import_list.import));
@@ -540,6 +547,11 @@ static word_id write_nodes(FILE *dotfile, ast_node *node, dictionary *parser_dic
             fprintf(dotfile, " | ");
             write_nodes(dotfile, node->import_list.tail, parser_dict, dot_dict);
         }
+        break;
+    case type_option_flag:
+        // write something...
+        fprintf(dotfile, "[silent] ");
+        write_nodes(dotfile, node->option_flag.child, parser_dict, dot_dict);
         break;
     }
     return WORD_NOT_FOUND;
@@ -557,7 +569,7 @@ void write_ast_graph(ast_node *node, dictionary *dict) {
     switch (node->type) {
     case type_module_list:
         // open a file to write the module to and call the write_nodes function, then recurse on other modules
-        sprintf(filename, "%s.dot", get_word(dict, node->module_list.id));
+        snprintf(filename, MAX_WORD_LENGTH + 5, "%s.dot", get_word(dict, node->module_list.id));
         dotfile = fopen(filename, "w");
         initialize_dictionary(&dot_dict);
         fprintf(dotfile, "digraph \"%s\" {\n  node [shape=record]\n", get_word(dict, node->module_list.id));

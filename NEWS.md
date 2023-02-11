@@ -1,3 +1,13 @@
+# nfer 1.1.2
+
+ * Add constant folding.
+ * Fix a problem with C23 support caused by defining bool that caused nfer to be archived on CRAN.
+ * Add a silent import feature to the DSL.
+ * Fix a problem that prevented nested imports from working.
+ * Fix support for the MS VS compiler.
+ * Replace all calls to sprintf with snprintf.
+ * Fix a warning from casting pointers to ints when they should have been cast to int pointers.
+
 # nfer 1.1.1
 
  * Fix a tricky bug where intervals could exclude themselves.

@@ -45,7 +45,8 @@ typedef enum {
     type_rule,
     type_rule_list,
     type_module_list,
-    type_import_list
+    type_import_list,
+    type_option_flag
 } node_enum;
 
 typedef enum {
@@ -172,6 +173,7 @@ typedef struct {
     /* extra annotations to be set during semantic analysis */
     data_map label_map;  // this is used for atomic rules to track what labels point to
     word_id result_id;   // this is the id of the produced interval name
+    bool disabled;       // can be set to disable analysis and generation of a rule
 } rule_node;
 
 /* specification */
@@ -188,12 +190,21 @@ typedef struct {
 
     /* extra annotations to be set during semantic analysis */
     bool imported;
+    bool silent;
 } module_list_node;
 
 typedef struct {
     word_id import;
     struct _ast_node *tail;
+
+    /* extra annotations to be set during semantic analysis */
+    bool silent;
 } import_list_node;
+
+typedef struct {
+    int flag;
+    struct _ast_node *child;
+} option_flag_node;
 
 typedef struct _location_type {
     int first_line;
@@ -223,6 +234,7 @@ typedef struct _ast_node {
     rule_node rule;
     rule_list_node rule_list;
     module_list_node module_list;
+    option_flag_node option_flag;
     import_list_node import_list;
 
 } ast_node;
@@ -243,7 +255,9 @@ ast_node *new_end_points(ast_node *, ast_node *, location_type *);
 ast_node *new_rule(word_id, ast_node *, ast_node *, ast_node *, ast_node *, location_type *);
 ast_node *new_rule_list(ast_node *, ast_node *);
 ast_node *new_module_list(word_id, ast_node *, ast_node *, ast_node *, location_type *);
+ast_node *new_option_flag(int, ast_node *, location_type *);
 ast_node *new_import_list(word_id, ast_node *, location_type *);
+ast_node *append_import_list(ast_node *, ast_node *);
 
 void parse_error(ast_node *, const char *);
 void free_node(ast_node *);

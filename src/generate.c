@@ -591,7 +591,11 @@ static void generate_eval_from_map_expr_list(ast_node *ie_node, ast_node *map_ex
     generate_eval_from_map_expr_list(ie_node, map_expr_list->map_expr_list.tail, map);
 }
 
-static void generate_rules(ast_node *node, nfer_specification *spec) {
+/**
+ * Generates all the necessary machinery for a single rule.
+ * Takes a rule type node, a spec, and whether or not it was imported silently as inputs.
+ */
+static void generate_rule(ast_node *node, nfer_specification *spec, bool silent_import) {
     nfer_rule *rule;
     int size;
 
@@ -599,6 +603,11 @@ static void generate_rules(ast_node *node, nfer_specification *spec) {
     assert(node != NULL);
     assert(spec != NULL);
     assert(node->type == type_rule);
+
+    // skip generation if the rule is disabled
+    if (node->rule.disabled) {
+        return;
+    }
 
     rule = generate_each_rule(node->rule.interval_expr, spec, node->rule.result_id, node->rule.where_expr);
     if (!rule) {
@@ -615,8 +624,10 @@ static void generate_rules(ast_node *node, nfer_specification *spec) {
         }
     }
 
-    // make sure this is not a hidden rule
-    rule->hidden = false;
+    // all nested rules will be set to hidden, and we need to set them
+    // to not hidden here if their results should be in the output.
+    // We need to respect the silent imports, though.
+    rule->hidden = silent_import;
     if (node->rule.end_points) {
         size = 1 + get_eval_size(node->rule.interval_expr, node->rule.end_points->end_points.begin_expr);
         initialize_expression_input(&rule->begin_expression, size);
@@ -634,10 +645,26 @@ static void generate_rules(ast_node *node, nfer_specification *spec) {
 }
 
 /**
+ * This function recurses over a rule list, calling generate_rule for
+ * each rule.  It keeps track of whether the rules should be silent or not.
+ */
+static void generate_rules(ast_node *node, nfer_specification *spec, bool silent) {
+    if (!node) {
+        return;
+    }
+
+    assert(node->type == type_rule_list);
+    // first, call generate_rule on the rule node
+    generate_rule(node->rule_list.head, spec, silent);
+    // then recurse
+    generate_rules(node->rule_list.tail, spec, silent);
+}
+
+/**
  * Generate the nfer_specification for a DSL AST after it has been processed
  * by semantic analysis.
- * This function recurses over the modules and rule lists and calls
- * generate_rules for each rule in turn.
+ * This function recurses over the modules and calls generate_rules for each
+ * rule list.
  **/
 void generate_specification(ast_node *node, nfer_specification *spec) {
     if (!node) {
@@ -645,15 +672,14 @@ void generate_specification(ast_node *node, nfer_specification *spec) {
     }
     switch (node->type) {
     case type_rule_list:
-        // in the case of a rule_list, call generate_rules on the head (a rule node)
-        generate_rules(node->rule_list.head, spec);
-        // then recurse on the rest of the rule_list
-        generate_specification(node->rule_list.tail, spec);
+        // this is necessary to support specs without modules
+        // in the case of a rule_list, just call generate_rules with silent set to false
+        generate_rules(node, spec, false);
         break;
     case type_module_list:
         // only process rules from imported modules
         if (node->module_list.imported) {
-            generate_specification(node->module_list.rules, spec);
+            generate_rules(node->module_list.rules, spec, node->module_list.silent);
         } 
         // recurse on the rest of the module list
         generate_specification(node->module_list.tail, spec);

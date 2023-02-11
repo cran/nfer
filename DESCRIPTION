@@ -1,6 +1,6 @@
 Package: nfer
 Title: Event Stream Abstraction using Interval Logic
-Version: 1.1.1
+Version: 1.1.2
 Authors@R: 
     person("Sean", "Kauffman", , "seank@cs.aau.dk", role = c("aut", "cre"),
            comment = c(ORCID = "0000-0001-6341-3898"))
@@ -21,8 +21,8 @@ Suggests: knitr, rmarkdown, testthat (>= 3.0.0)
 VignetteBuilder: knitr
 Config/testthat/edition: 3
 NeedsCompilation: yes
-Packaged: 2022-11-25 13:59:32 UTC; sb37fk
+Packaged: 2023-02-10 09:29:03 UTC; sb37fk
 Author: Sean Kauffman [aut, cre] (<https://orcid.org/0000-0001-6341-3898>)
 Maintainer: Sean Kauffman <seank@cs.aau.dk>
 Repository: CRAN
-Date/Publication: 2022-11-25 14:10:02 UTC
+Date/Publication: 2023-02-11 10:10:08 UTC

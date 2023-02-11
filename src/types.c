@@ -142,7 +142,7 @@ int64_t compare_typed_values(typed_value *left, typed_value *right) {
         break;
     case pointer_type:
         // just compare the pointer values - this shouldn't be used, actually
-        return (((int64_t)left->value.pointer) - ((int64_t)right->value.pointer));
+        return (((int64_t *)left->value.pointer) - ((int64_t *)right->value.pointer));
         break;
     }
 

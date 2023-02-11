@@ -259,11 +259,16 @@ static void pool_to_dataframe(pool *p, dictionary *name_dict,
     // allocate space for SEXP pointers...
     if (num_keys > 0) {
         data_out = malloc(sizeof(SEXP) * num_keys);
-        for (map_key_index = 0; map_key_index < num_keys; map_key_index++) {
-            // everything is a character type for now
-            data_out[map_key_index] = PROTECT(NEW_CHARACTER(n));
-            // set up the column name
-            SET_STRING_ELT(col_names, 3 + map_key_index, mkChar(get_word(key_dict, mapped_keys[map_key_index])));
+        if (data_out == NULL) {
+            // out of memory - try to return with no keys
+            num_keys = 0;
+        } else {
+            for (map_key_index = 0; map_key_index < num_keys; map_key_index++) {
+                // everything is a character type for now
+                data_out[map_key_index] = PROTECT(NEW_CHARACTER(n));
+                // set up the column name
+                SET_STRING_ELT(col_names, 3 + map_key_index, mkChar(get_word(key_dict, mapped_keys[map_key_index])));
+            }
         }
     }
 

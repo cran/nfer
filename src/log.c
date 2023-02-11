@@ -148,7 +148,7 @@ void write_msg(int log_to, const char *message, ...) {
 #ifdef TEST
     // this is for the unit test framework, so we can test logging and output
     } else if (log_to == WRITE_TESTING) {
-        test_log_buffer_pos += vsprintf(&test_log_buffer[test_log_buffer_pos], message, args);
+        test_log_buffer_pos += vsnprintf(&test_log_buffer[test_log_buffer_pos], TEST_BUFFER_SIZE, message, args);
 #endif
     } else {
         fprintf(stderr, "WENT WRONG: %d\n", log_to);
