@@ -84,7 +84,7 @@ read <- function(event_file) {
       # get the values
       new_vals <- unlist(strsplit(df[row,4], ";"))
       # replace T/F values since R needs uppercase, but nfer expects lower
-      new_vals <- gsub("^true$", "TRUE", gsub("^false", "FALSE", new_vals))
+      new_vals <- gsub("^true$", "TRUE", gsub("^false$", "FALSE", new_vals))
       # get the keys for the values
       row_keys <- key_map[[df[row,3]]]
       

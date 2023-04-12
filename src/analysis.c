@@ -464,7 +464,11 @@ bool exclusive_cycle(nfer_specification *spec) {
     for (id = 0; id < spec->size; id++) {
         rule = &spec->rules[id];
         // mark that this is a cycle if we see cycle_size above zero
-        if (rule->cycle_size > 0) {
+        if (rule->cycle_size > 0 || 
+             // detect single-rule cycles
+             (rule->result_label == rule->left_label || 
+              rule->result_label == rule->right_label)
+            ) {
             in_cycle = true;
         }
         // then check for exclusive + in cycle

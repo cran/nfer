@@ -48,6 +48,7 @@ typedef enum {
 #define SEMANTIC_ERROR_DUP_LABEL real_type
 
 bool set_imported(ast_node *);
+bool propagate_constants(ast_node *);
 ast_value_type check_types(ast_node *);
 bool determine_labels(ast_node *, dictionary *, dictionary *, dictionary *);
 bool determine_fields(ast_node *, dictionary *, dictionary *, dictionary *);

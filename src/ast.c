@@ -97,6 +97,24 @@ ast_node *new_string_literal(word_id id, location_type *loc) {
     return p;
 }
 
+ast_node *new_constant_reference(word_id name, location_type *loc) {
+    ast_node *p;
+
+    /* allocate node */
+    ALLOCATE_AST_NODE_TO_P
+
+    p->location.first_line = loc->first_line;
+    p->location.first_column = loc->first_column;
+    p->location.last_line = loc->last_line;
+    p->location.last_column = loc->last_column;
+
+    /* copy information */
+    p->type = type_constant_reference;
+    p->constant_reference.name = name;
+
+    return p;
+}
+
 ast_node *new_boolean_literal(bool value, location_type *loc) {
     ast_node *p;
 
@@ -372,7 +390,12 @@ ast_node *new_rule_list(ast_node *head, ast_node *tail) {
 
     return p;
 }
-ast_node *new_module_list(word_id id, ast_node *imports, ast_node *rules, ast_node *tail, location_type *loc) {
+ast_node *new_module_list(word_id id, 
+                          ast_node *imports, 
+                          ast_node *constants, 
+                          ast_node *rules, 
+                          ast_node *tail, 
+                          location_type *loc) {
     ast_node *p;
 
     /* allocate node */
@@ -396,6 +419,7 @@ ast_node *new_module_list(word_id id, ast_node *imports, ast_node *rules, ast_no
     p->type = type_module_list;
     p->module_list.id = id;
     p->module_list.imports = imports;
+    p->module_list.constants = constants;
     p->module_list.rules = rules;
     p->module_list.tail = tail;
 
@@ -481,6 +505,31 @@ ast_node *new_option_flag(int flag, ast_node *child, location_type *loc) {
 
     return p;
 }
+/* named constants */
+ast_node *new_named_constant(word_id name, ast_node *expr, ast_node *tail, location_type *loc) {
+    ast_node *p;
+
+    /* allocate node */
+    ALLOCATE_AST_NODE_TO_P
+
+    p->location.first_line = loc->first_line;
+    p->location.first_column = loc->first_column;
+    if (expr) {
+        p->location.last_line = expr->location.last_line;
+        p->location.last_column = expr->location.last_column;
+    } else {
+        p->location.last_line = loc->last_line;
+        p->location.last_column = loc->last_column;
+    }
+
+    /* copy information */
+    p->type = type_named_constant;
+    p->named_constant.name = name;
+    p->named_constant.expr = expr;
+    p->named_constant.tail = tail;
+
+    return p;
+}
 
 void parse_error(ast_node *node, const char *message) {
     filter_log_msg(LOG_LEVEL_ERROR, "%s on Lines %d:%d - %d:%d\n", message,
@@ -539,6 +588,7 @@ void free_node(ast_node *p) {
     case type_module_list:
         filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free module_list %x\n", p);
         free_node(p->module_list.imports);
+        free_node(p->module_list.constants);
         free_node(p->module_list.rules);
         free_node(p->module_list.tail);
         break;
@@ -550,10 +600,148 @@ void free_node(ast_node *p) {
         filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free option_flag %x\n", p);
         free_node(p->option_flag.child);
         break;
+    case type_named_constant:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Free named_constant %x\n", p);
+        free_node(p->named_constant.expr);
+        free_node(p->named_constant.tail);
     default:
         break;
     }
     free (p);
 }
 
+/**
+ * Recursively copy an AST without preserving any extra data structures
+ * that are populated during semantic analysis.  This permits using the 
+ * worker functions above.
+ * 
+ * This function is needed for both constant propagation and (once it is
+ * implemented) parameterized modules.
+ * 
+ * @return a pointer to the copy of the node
+ */
+ast_node * copy_ast(ast_node *p) {
+    ast_node *result;
 
+    // copy null :)
+    if (p == NULL) {
+        return NULL;
+    }
+
+    /* depth first recurse */
+    switch(p->type) {
+    /* unlike with free_node we need to handle the leaves */
+    case type_int_literal:
+        result = new_int_literal(p->int_literal.value, &p->location);
+        break;
+    case type_float_literal:
+        result = new_float_literal(p->float_literal.value, &p->location);
+        break;
+    case type_string_literal:
+        result = new_string_literal(p->string_literal.id, &p->location);
+        break;
+    case type_constant_reference:
+        result = new_constant_reference(p->constant_reference.name, &p->location);
+        break;
+    case type_boolean_literal:
+        result = new_boolean_literal(p->boolean_literal.value, &p->location);
+        break;
+    case type_map_field:
+        result = new_map_field(p->map_field.label,
+                               p->map_field.map_key,
+                               &p->location,
+                               &p->location);
+        break;
+    case type_time_field:
+        result = new_time_field(p->time_field.time_field,
+                                p->time_field.label,
+                                &p->location,
+                                &p->location);
+        break;
+    case type_unary_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy unary_expr %x\n", p);
+        result = new_unary_expr(p->unary_expr.operator, 
+                                copy_ast(p->unary_expr.operand),
+                                &p->location
+                                );
+        break;
+    case type_binary_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy binary_expr %x\n", p);
+        result = new_binary_expr(p->binary_expr.operator,
+                                 copy_ast(p->binary_expr.left),
+                                 copy_ast(p->binary_expr.right)
+                                 );
+        break;
+    case type_atomic_interval_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy atomic_interval_expr %x\n", p);
+        result = new_atomic_interval_expr(p->atomic_interval_expr.label, 
+                                          p->atomic_interval_expr.id, 
+                                          &p->location, &p->location
+                                          );
+        break;
+    case type_binary_interval_expr:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy binary_interval_expr %x\n", p);
+        result = new_binary_interval_expr(p->binary_interval_expr.interval_op,
+                                          p->binary_interval_expr.exclusion,
+                                          copy_ast(p->binary_interval_expr.left),
+                                          copy_ast(p->binary_interval_expr.right)
+                                          );
+        break;
+    case type_map_expr_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy map_expr_list %x\n", p);
+        result = new_map_expr_list(p->map_expr_list.map_key,
+                                   copy_ast(p->map_expr_list.map_expr),
+                                   copy_ast(p->map_expr_list.tail),
+                                   &p->location);
+        break;
+    case type_end_points:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy end_points %x\n", p);
+        result = new_end_points(copy_ast(p->end_points.begin_expr),
+                                copy_ast(p->end_points.end_expr),
+                                &p->location);
+        break;
+    case type_rule:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy rule %x\n", p);
+        result = new_rule(p->rule.id,
+                          copy_ast(p->rule.interval_expr),
+                          copy_ast(p->rule.where_expr),
+                          copy_ast(p->rule.map_expr_list),
+                          copy_ast(p->rule.end_points),
+                          &p->location);
+        break;
+    case type_rule_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy rule_list %x\n", p);
+        result = new_rule_list(copy_ast(p->rule_list.head),
+                               copy_ast(p->rule_list.tail));
+        break;
+    case type_module_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy module_list %x\n", p);
+        result = new_module_list(p->module_list.id,
+                                 copy_ast(p->module_list.imports),
+                                 copy_ast(p->module_list.constants),
+                                 copy_ast(p->module_list.rules),
+                                 copy_ast(p->module_list.tail),
+                                 &p->location);
+        break;
+    case type_import_list:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy import_list %x\n", p);
+        result = new_import_list(p->import_list.import,
+                                 copy_ast(p->import_list.tail),
+                                 &p->location);
+        break;
+    case type_option_flag:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy option_flag %x\n", p);
+        result = new_option_flag(p->option_flag.flag,
+                                 copy_ast(p->option_flag.child),
+                                 &p->location);
+        break;
+    case type_named_constant:
+        filter_log_msg(LOG_LEVEL_SUPERDEBUG, "-- Copy named_constant %x\n", p);
+        result = new_named_constant(p->named_constant.name,
+                                    copy_ast(p->named_constant.expr),
+                                    copy_ast(p->named_constant.tail),
+                                    &p->location);
+    }
+
+    return result;
+}

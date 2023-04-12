@@ -1,3 +1,7 @@
+# nfer 1.1.3
+ * Added support for named constants in the DSL.
+ * Some code restructuring to improve maintainability.
+
 # nfer 1.1.2
 
  * Add constant folding.

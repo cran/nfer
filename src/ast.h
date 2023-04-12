@@ -33,6 +33,7 @@ typedef enum {
     type_int_literal,
     type_float_literal,
     type_string_literal,
+    type_constant_reference,
     type_boolean_literal,
     type_unary_expr,
     type_binary_expr,
@@ -46,7 +47,8 @@ typedef enum {
     type_rule_list,
     type_module_list,
     type_import_list,
-    type_option_flag
+    type_option_flag,
+    type_named_constant
 } node_enum;
 
 typedef enum {
@@ -69,6 +71,10 @@ typedef struct {
     /* extra annotations to be set during semantic analysis */
     word_id val_dict_id;
 } string_literal_node;
+
+typedef struct {
+    word_id name;
+} constant_reference_node;
 
 typedef struct {
     bool value;
@@ -185,6 +191,7 @@ typedef struct {
 typedef struct {
     word_id id;
     struct _ast_node *imports;
+    struct _ast_node *constants;
     struct _ast_node *rules;
     struct _ast_node *tail;
 
@@ -206,6 +213,12 @@ typedef struct {
     struct _ast_node *child;
 } option_flag_node;
 
+typedef struct {
+    word_id name;
+    struct _ast_node *expr;
+    struct _ast_node *tail;
+} named_constant_node;
+
 typedef struct _location_type {
     int first_line;
     int first_column;
@@ -222,6 +235,7 @@ typedef struct _ast_node {
     int_literal_node int_literal;
     float_literal_node float_literal;
     string_literal_node string_literal;
+    constant_reference_node constant_reference;
     boolean_literal_node boolean_literal;
     unary_expr_node unary_expr;
     binary_expr_node binary_expr;
@@ -236,6 +250,7 @@ typedef struct _ast_node {
     module_list_node module_list;
     option_flag_node option_flag;
     import_list_node import_list;
+    named_constant_node named_constant;
 
 } ast_node;
 
@@ -243,6 +258,7 @@ typedef struct _ast_node {
 ast_node *new_int_literal(long int, location_type *);
 ast_node *new_float_literal(double, location_type *);
 ast_node *new_string_literal(word_id, location_type *);
+ast_node *new_constant_reference(word_id, location_type *);
 ast_node *new_boolean_literal(bool, location_type *);
 ast_node *new_unary_expr(int, ast_node *, location_type *);
 ast_node *new_binary_expr(int, ast_node *, ast_node *);
@@ -254,12 +270,14 @@ ast_node *new_map_expr_list(word_id, ast_node *, ast_node *, location_type *);
 ast_node *new_end_points(ast_node *, ast_node *, location_type *);
 ast_node *new_rule(word_id, ast_node *, ast_node *, ast_node *, ast_node *, location_type *);
 ast_node *new_rule_list(ast_node *, ast_node *);
-ast_node *new_module_list(word_id, ast_node *, ast_node *, ast_node *, location_type *);
+ast_node *new_module_list(word_id, ast_node *, ast_node *, ast_node *, ast_node *, location_type *);
 ast_node *new_option_flag(int, ast_node *, location_type *);
 ast_node *new_import_list(word_id, ast_node *, location_type *);
 ast_node *append_import_list(ast_node *, ast_node *);
+ast_node *new_named_constant(word_id, ast_node *, ast_node *, location_type *);
 
 void parse_error(ast_node *, const char *);
 void free_node(ast_node *);
+ast_node * copy_ast(ast_node *);
 
 #endif

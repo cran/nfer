@@ -95,54 +95,55 @@ extern int yydebug;
     FLOATLITERAL = 259,            /* FLOATLITERAL  */
     IDENTIFIER = 260,              /* IDENTIFIER  */
     STRINGLITERAL = 261,           /* STRINGLITERAL  */
-    LPAREN = 262,                  /* LPAREN  */
-    RPAREN = 263,                  /* RPAREN  */
-    LBRACE = 264,                  /* LBRACE  */
-    RBRACE = 265,                  /* RBRACE  */
-    LISTSEP = 266,                 /* LISTSEP  */
-    MAPSTO = 267,                  /* MAPSTO  */
-    LABELS = 268,                  /* LABELS  */
-    MODULE = 269,                  /* MODULE  */
-    SILENT = 270,                  /* SILENT  */
-    LOUD = 271,                    /* LOUD  */
-    IMPORT = 272,                  /* IMPORT  */
-    WHERE = 273,                   /* WHERE  */
-    MAP = 274,                     /* MAP  */
-    BEGINTOKEN = 275,              /* BEGINTOKEN  */
-    ENDTOKEN = 276,                /* ENDTOKEN  */
-    FIELD = 277,                   /* FIELD  */
-    YIELDS = 278,                  /* YIELDS  */
-    TRUE = 279,                    /* TRUE  */
-    FALSE = 280,                   /* FALSE  */
-    EOL = 281,                     /* EOL  */
-    UNLESS = 282,                  /* UNLESS  */
-    ALSO = 283,                    /* ALSO  */
-    BEFORE = 284,                  /* BEFORE  */
-    MEET = 285,                    /* MEET  */
-    DURING = 286,                  /* DURING  */
-    START = 287,                   /* START  */
-    FINISH = 288,                  /* FINISH  */
-    OVERLAP = 289,                 /* OVERLAP  */
-    SLICE = 290,                   /* SLICE  */
-    COINCIDE = 291,                /* COINCIDE  */
-    AFTER = 292,                   /* AFTER  */
-    FOLLOW = 293,                  /* FOLLOW  */
-    CONTAIN = 294,                 /* CONTAIN  */
-    AND = 295,                     /* AND  */
-    OR = 296,                      /* OR  */
-    GE = 297,                      /* GE  */
-    LE = 298,                      /* LE  */
-    EQ = 299,                      /* EQ  */
-    NE = 300,                      /* NE  */
-    GT = 301,                      /* GT  */
-    LT = 302,                      /* LT  */
-    PLUS = 303,                    /* PLUS  */
-    MINUS = 304,                   /* MINUS  */
-    MUL = 305,                     /* MUL  */
-    DIV = 306,                     /* DIV  */
-    MOD = 307,                     /* MOD  */
-    UMINUS = 308,                  /* UMINUS  */
-    BANG = 309                     /* BANG  */
+    CONSTANT = 262,                /* CONSTANT  */
+    LPAREN = 263,                  /* LPAREN  */
+    RPAREN = 264,                  /* RPAREN  */
+    LBRACE = 265,                  /* LBRACE  */
+    RBRACE = 266,                  /* RBRACE  */
+    LISTSEP = 267,                 /* LISTSEP  */
+    MAPSTO = 268,                  /* MAPSTO  */
+    LABELS = 269,                  /* LABELS  */
+    MODULE = 270,                  /* MODULE  */
+    SILENT = 271,                  /* SILENT  */
+    LOUD = 272,                    /* LOUD  */
+    IMPORT = 273,                  /* IMPORT  */
+    WHERE = 274,                   /* WHERE  */
+    MAP = 275,                     /* MAP  */
+    BEGINTOKEN = 276,              /* BEGINTOKEN  */
+    ENDTOKEN = 277,                /* ENDTOKEN  */
+    FIELD = 278,                   /* FIELD  */
+    YIELDS = 279,                  /* YIELDS  */
+    TRUE = 280,                    /* TRUE  */
+    FALSE = 281,                   /* FALSE  */
+    EOL = 282,                     /* EOL  */
+    UNLESS = 283,                  /* UNLESS  */
+    ALSO = 284,                    /* ALSO  */
+    BEFORE = 285,                  /* BEFORE  */
+    MEET = 286,                    /* MEET  */
+    DURING = 287,                  /* DURING  */
+    START = 288,                   /* START  */
+    FINISH = 289,                  /* FINISH  */
+    OVERLAP = 290,                 /* OVERLAP  */
+    SLICE = 291,                   /* SLICE  */
+    COINCIDE = 292,                /* COINCIDE  */
+    AFTER = 293,                   /* AFTER  */
+    FOLLOW = 294,                  /* FOLLOW  */
+    CONTAIN = 295,                 /* CONTAIN  */
+    AND = 296,                     /* AND  */
+    OR = 297,                      /* OR  */
+    GE = 298,                      /* GE  */
+    LE = 299,                      /* LE  */
+    EQ = 300,                      /* EQ  */
+    NE = 301,                      /* NE  */
+    GT = 302,                      /* GT  */
+    LT = 303,                      /* LT  */
+    PLUS = 304,                    /* PLUS  */
+    MINUS = 305,                   /* MINUS  */
+    MUL = 306,                     /* MUL  */
+    DIV = 307,                     /* DIV  */
+    MOD = 308,                     /* MOD  */
+    UMINUS = 309,                  /* UMINUS  */
+    BANG = 310                     /* BANG  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -158,7 +159,7 @@ union YYSTYPE
     word_id string_value;
     ast_node *node;
 
-#line 163 "gensrc/parser/dsl.tab.h"
+#line 164 "gensrc/parser/dsl.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -191,6 +192,6 @@ int yyparse (void * scanner, dictionary *parser_dict, ast_node **ast_root);
 int yylex(YYSTYPE * yylval_param, YYLTYPE * llocp, void * yyscanner, dictionary *parser_dict);
 void yyerror(YYLTYPE * yylloc, void * scanner, dictionary *parser_dict, ast_node **ast_root, const char* message);
 
-#line 196 "gensrc/parser/dsl.tab.h"
+#line 197 "gensrc/parser/dsl.tab.h"
 
 #endif /* !YY_YY_GENSRC_PARSER_DSL_TAB_H_INCLUDED  */

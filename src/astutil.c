@@ -47,6 +47,9 @@ void log_ast(ast_node *node, dictionary *parser_dict) {
     case type_string_literal:
         log_msg("\"%s\"", get_word(parser_dict, node->string_literal.id));
         break;
+    case type_constant_reference:
+        log_msg("%s", get_word(parser_dict, node->constant_reference.name));
+        break;
     case type_boolean_literal:
         if (node->boolean_literal.value) {
             log_msg("TRUE");
@@ -224,13 +227,16 @@ void log_ast(ast_node *node, dictionary *parser_dict) {
         if (node->module_list.imports) {
             log_ast(node->module_list.imports, parser_dict);
         }
+        if (node->module_list.constants) {
+            log_ast(node->module_list.constants, parser_dict);
+        }
         log_ast(node->module_list.rules, parser_dict);
         log_msg("\n}\n");
         log_ast(node->module_list.tail, parser_dict);
         break;
     case type_import_list:
         log_msg("import ");
-        log_msg(get_word(parser_dict, node->import_list.import));
+        log_msg("%s", get_word(parser_dict, node->import_list.import));
         log_msg(";\n");
 
         if (node->import_list.tail) {
@@ -244,6 +250,13 @@ void log_ast(ast_node *node, dictionary *parser_dict) {
         }
         log_ast(node->option_flag.child, parser_dict);
         break;
+    case type_named_constant:
+        // recurse first to put them in the right order
+        log_ast(node->named_constant.tail, parser_dict);
+        // then log the name/value
+        log_msg("%s := ", get_word(parser_dict, node->named_constant.name));
+        log_ast(node->named_constant.expr, parser_dict);
+        log_msg("\n");
     }
 }
 
@@ -276,6 +289,11 @@ static word_id write_nodes(FILE *dotfile, ast_node *node, dictionary *parser_dic
     case type_string_literal:
         node_id = create_node(dot_dict, "StringLiteral", node);
         fprintf(dotfile, "%s [label=\"\\\"%s\\\"\"];\n", get_word(dot_dict, node_id), get_word(parser_dict, node->string_literal.id));
+        return node_id;
+        break;
+    case type_constant_reference:
+        node_id = create_node(dot_dict, "ConstantReference", node);
+        fprintf(dotfile, "%s [label=\"%s\"];\n", get_word(dot_dict, node_id), get_word(parser_dict, node->constant_reference.name));
         return node_id;
         break;
     case type_boolean_literal:
@@ -553,8 +571,32 @@ static word_id write_nodes(FILE *dotfile, ast_node *node, dictionary *parser_dic
         fprintf(dotfile, "[silent] ");
         write_nodes(dotfile, node->option_flag.child, parser_dict, dot_dict);
         break;
+    case type_named_constant:
+        fprintf(dotfile, "<c%d> %s", node->named_constant.name, get_word(parser_dict, node->named_constant.name));
+        if (node->named_constant.tail) {
+            fprintf(dotfile, " | ");
+            write_nodes(dotfile, node->named_constant.tail, parser_dict, dot_dict);
+        }
+        break;
     }
     return WORD_NOT_FOUND;
+}
+
+static void write_constant_exprs(FILE *dotfile, ast_node *node, dictionary *parser_dict, dictionary *dot_dict) {
+    word_id child_id;
+
+    if (node == NULL) {
+        return;
+    }
+
+    if(node->type == type_named_constant) {
+        // if there's an expr, write it and then reference it
+        if (node->named_constant.expr) {
+            child_id = write_nodes(dotfile, node->named_constant.expr, parser_dict, dot_dict);
+            fprintf(dotfile, "Constants:c%d -> %s\n", node->named_constant.name, get_word(dot_dict, child_id));
+        }
+        write_constant_exprs(dotfile, node->named_constant.tail, parser_dict, dot_dict);
+    }
 }
 
 void write_ast_graph(ast_node *node, dictionary *dict) {
@@ -568,15 +610,26 @@ void write_ast_graph(ast_node *node, dictionary *dict) {
     }
     switch (node->type) {
     case type_module_list:
-        // open a file to write the module to and call the write_nodes function, then recurse on other modules
-        snprintf(filename, MAX_WORD_LENGTH + 5, "%s.dot", get_word(dict, node->module_list.id));
-        dotfile = fopen(filename, "w");
+        // handle the case where the module name is not set (default module)
+        if (node->module_list.id == WORD_NOT_FOUND) {
+            dotfile = fopen("rules.dot", "w");
+        } else {
+            // open a file to write the module to and call the write_nodes function, then recurse on other modules
+            snprintf(filename, MAX_WORD_LENGTH + 5, "%s.dot", get_word(dict, node->module_list.id));
+            dotfile = fopen(filename, "w");
+        }
         initialize_dictionary(&dot_dict);
         fprintf(dotfile, "digraph \"%s\" {\n  node [shape=record]\n", get_word(dict, node->module_list.id));
         if (node->module_list.imports) {
             fprintf(dotfile, "Imports [label=\"{ Imports | {");
             write_nodes(dotfile, node->module_list.imports, dict, &dot_dict);
             fprintf(dotfile, "} }\"];\n");
+        }
+        if (node->module_list.constants) {
+            fprintf(dotfile, "Constants [label=\"{ Constants | {");
+            write_nodes(dotfile, node->module_list.constants, dict, &dot_dict);
+            fprintf(dotfile, "} }\"];\n");
+            write_constant_exprs(dotfile, node->module_list.constants, dict, &dot_dict);
         }
         write_nodes(dotfile, node->module_list.rules, dict, &dot_dict);
         fprintf(dotfile, "}\n");
